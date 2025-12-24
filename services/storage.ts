@@ -1,5 +1,5 @@
 
-import { openDB, IDBPDatabase } from 'https://esm.sh/idb';
+import { openDB, IDBPDatabase } from 'idb';
 
 const DB_NAME = 'TheInsuranceBossDB';
 const DB_VERSION = 1;
