@@ -25,8 +25,14 @@ export const calculateFileHash = async (base64: string): Promise<string> => {
 };
 
 export const analyzePolicy = async (file: File): Promise<PolicyAnalysis> => {
-  // Use process.env.API_KEY directly to satisfy environment requirements and build constraints
-  const ai = new GoogleGenAI({ apiKey: (process.env as any).API_KEY });
+  // Ensure the API Key is available before proceeding
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    throw new Error("No API Key detected. Please ensure you have connected your Google Cloud API key in the header.");
+  }
+
+  // Create a new instance right before making an API call to ensure it uses the most up-to-date API key
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const base64Data = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -116,7 +122,7 @@ export const analyzePolicy = async (file: File): Promise<PolicyAnalysis> => {
     });
 
     const text = response.text;
-    if (!text) throw new Error("No analysis content returned from AI.");
+    if (!text) throw new Error("The AI was unable to generate an audit report for this document.");
     
     let result = JSON.parse(text);
     
@@ -133,7 +139,10 @@ export const analyzePolicy = async (file: File): Promise<PolicyAnalysis> => {
     };
   } catch (error: any) {
     console.error("Analysis error:", error);
-    throw new Error(`Analysis failed: ${error?.message || "Unknown error"}`);
+    if (error?.message?.includes("API key")) {
+      throw new Error("Missing or invalid API Key. Please click the 'Connect Key' button in the header.");
+    }
+    throw new Error(`Technical Audit Failed: ${error?.message || "Unknown error occurred"}`);
   }
 };
 
