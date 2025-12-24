@@ -26,7 +26,7 @@ export const calculateFileHash = async (base64: string): Promise<string> => {
 };
 
 export const analyzePolicy = async (file: File): Promise<PolicyAnalysis> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
   
   const base64Data = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
