@@ -1,8 +1,7 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { PolicyAnalysis } from "../types";
 
-const MODEL_NAME = 'gemini-3-pro-preview';
+const MODEL_NAME = 'gemini-3-flash-preview';
 
 export const calculateFileHash = async (base64: string): Promise<string> => {
   try {
@@ -26,7 +25,8 @@ export const calculateFileHash = async (base64: string): Promise<string> => {
 };
 
 export const analyzePolicy = async (file: File): Promise<PolicyAnalysis> => {
-  const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
+  // Use process.env.API_KEY directly to satisfy environment requirements and build constraints
+  const ai = new GoogleGenAI({ apiKey: (process.env as any).API_KEY });
   
   const base64Data = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -73,7 +73,6 @@ export const analyzePolicy = async (file: File): Promise<PolicyAnalysis> => {
       config: {
         seed: 42,
         temperature: 0,
-        thinkingConfig: { thinkingBudget: 32768 }, 
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -116,7 +115,10 @@ export const analyzePolicy = async (file: File): Promise<PolicyAnalysis> => {
       }
     });
 
-    let result = JSON.parse(response.text || '{}');
+    const text = response.text;
+    if (!text) throw new Error("No analysis content returned from AI.");
+    
+    let result = JSON.parse(text);
     
     if (result.score > 10) result.score = result.score / 10;
     if (result.score < 0) result.score = 0;

@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { HashRouter, Routes, Route, useNavigate } from 'react-router-dom';
+// Fixing react-router-dom imports by using the library namespace to avoid named export errors in some environments
+import * as ReactRouterDOM from 'react-router-dom';
 import Header from './components/Header';
 import UploadSection from './components/UploadSection';
 import AnalysisResult from './components/AnalysisResult';
@@ -10,13 +11,15 @@ import WizardForm from './components/WizardForm';
 import { PolicyAnalysis, QuoteRequest } from './types';
 import { storage } from './services/storage';
 
+const { HashRouter, Routes, Route } = ReactRouterDOM;
+
 const HeaderWrapper: React.FC<{ 
   isAdmin: boolean; 
   setIsAdmin: (v: boolean) => void; 
   setShowWizard: (v: boolean) => void;
   setCurrentAnalysis: (v: PolicyAnalysis | null) => void;
 }> = ({ isAdmin, setIsAdmin, setShowWizard, setCurrentAnalysis }) => {
-  const navigate = useNavigate();
+  const navigate = ReactRouterDOM.useNavigate();
   
   const handleOpenWizard = () => {
     setCurrentAnalysis(null);

@@ -1,4 +1,3 @@
-
 import { openDB, IDBPDatabase } from 'idb';
 
 const DB_NAME = 'TheInsuranceBossDB';
