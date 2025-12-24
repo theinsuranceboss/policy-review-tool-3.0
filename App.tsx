@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 // Fixing react-router-dom imports by using the library namespace to avoid named export errors in some environments
 import * as ReactRouterDOM from 'react-router-dom';
@@ -151,9 +150,9 @@ const App: React.FC = () => {
 
   if (!isDataLoaded) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black">
-        <div className="text-yellow-400 font-black italic text-2xl animate-pulse tracking-tighter">
-          OPENING LOCAL VAULT...
+      <div className="min-h-screen flex items-center justify-center bg-transparent">
+        <div className="text-yellow-400 font-black text-2xl animate-pulse tracking-tighter uppercase">
+          Initializing...
         </div>
       </div>
     );
@@ -191,6 +190,7 @@ const App: React.FC = () => {
                 <UploadSection 
                   onAnalysisComplete={handleNewAnalysis} 
                   existingPolicies={allPolicies}
+                  onOpenWizard={() => setShowWizard(true)}
                 />
               )
             } />

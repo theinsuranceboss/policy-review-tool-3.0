@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { QuoteRequest } from '../types';
 
@@ -36,30 +35,6 @@ const WizardForm: React.FC<WizardFormProps> = ({ onSubmit, onCancel }) => {
 
   const totalSteps = 8;
   const progress = Math.round((step / totalSteps) * 100);
-
-  const fillTestData = () => {
-    setFormData({
-      businessName: "Atlas Prime Construction LLC",
-      dba: "Atlas Prime Builders",
-      fein: "84-7392846",
-      yearsInBusiness: "7",
-      address1: "2475 Industrial Parkway",
-      address2: "Suite 310",
-      city: "Tampa",
-      state: "FL",
-      zip: "33605",
-      country: "United States",
-      industries: ["Construction", "Real Estate"],
-      cslbClasses: ["C-10", "C-36", "C-39"],
-      hasActiveCoverage: true,
-      knowsPremium: true,
-      hasDeclPage: true,
-      contactName: "Michael Rivera",
-      contactEmail: "michael.rivera@atlasprimeco.com",
-      contactPhone: "(813) 555-7429"
-    });
-    setStep(1); // Reset to step 1 to see the data
-  };
 
   const handleNext = () => {
     let nextStep = step + 1;
@@ -108,7 +83,7 @@ const WizardForm: React.FC<WizardFormProps> = ({ onSubmit, onCancel }) => {
           <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
         </div>
         <div className="space-y-4">
-          <h2 className="text-4xl font-black italic">SMART REVIEW SUBMITTED!</h2>
+          <h2 className="text-4xl font-black uppercase">SMART REVIEW SUBMITTED!</h2>
           <p className="text-gray-400 text-lg max-w-md mx-auto">
             Your information has been received. Our team is reviewing your inquiry and will reach out shortly.
           </p>
@@ -136,65 +111,59 @@ const WizardForm: React.FC<WizardFormProps> = ({ onSubmit, onCancel }) => {
         </div>
       </div>
 
-      <div className="glass-card rounded-[2.5rem] p-8 md:p-12 min-h-[500px] flex flex-col">
+      <div className="glass-card rounded-[2.5rem] p-8 md:p-12 min-h-[500px] flex flex-col shadow-2xl">
         <div className="flex justify-between items-start mb-6">
           <div className="flex-1">
              {/* Dynamic Heading based on step */}
              {step === 1 && (
               <div className="animate-in fade-in slide-in-from-right-4">
-                <h3 className="text-3xl font-black italic mb-2 uppercase tracking-tighter">Business Basics</h3>
+                <h3 className="text-3xl font-black mb-2 uppercase tracking-tighter">Business Basics</h3>
                 <p className="text-gray-400">Fast start - let's identify your business.</p>
               </div>
             )}
             {step === 2 && (
               <div className="animate-in fade-in slide-in-from-right-4">
-                <h3 className="text-3xl font-black italic mb-2 uppercase tracking-tighter">Business Location</h3>
+                <h3 className="text-3xl font-black mb-2 uppercase tracking-tighter">Business Location</h3>
                 <p className="text-gray-400">Where is your primary base of operations?</p>
               </div>
             )}
             {step === 3 && (
               <div className="animate-in fade-in slide-in-from-right-4">
-                <h3 className="text-3xl font-black italic mb-2 uppercase tracking-tighter">Business Type</h3>
+                <h3 className="text-3xl font-black mb-2 uppercase tracking-tighter">Business Type</h3>
                 <p className="text-gray-400">Select all that apply to your operations.</p>
               </div>
             )}
             {step === 4 && (
               <div className="animate-in fade-in slide-in-from-right-4">
-                <h3 className="text-3xl font-black italic mb-2 uppercase tracking-tighter">Contractor License</h3>
+                <h3 className="text-3xl font-black mb-2 uppercase tracking-tighter">Contractor License</h3>
                 <p className="text-gray-400">Please select your CSLB License Class Codes.</p>
               </div>
             )}
             {step === 5 && (
               <div className="animate-in fade-in slide-in-from-right-4">
-                <h3 className="text-3xl font-black italic mb-2 uppercase tracking-tighter">Existing Coverage</h3>
+                <h3 className="text-3xl font-black mb-2 uppercase tracking-tighter">Existing Coverage</h3>
                 <p className="text-gray-400">Tell us about your current insurance status.</p>
               </div>
             )}
             {step === 6 && (
               <div className="animate-in fade-in slide-in-from-right-4">
-                <h3 className="text-3xl font-black italic mb-2 uppercase tracking-tighter">Document Upload</h3>
+                <h3 className="text-3xl font-black mb-2 uppercase tracking-tighter">Document Upload</h3>
                 <p className="text-gray-400">Uploading your Dec Page allows for a much deeper analysis.</p>
               </div>
             )}
             {step === 7 && (
               <div className="animate-in fade-in slide-in-from-right-4">
-                <h3 className="text-3xl font-black italic mb-2 uppercase tracking-tighter">Contact Details</h3>
+                <h3 className="text-3xl font-black mb-2 uppercase tracking-tighter">Contact Details</h3>
                 <p className="text-gray-400">Final stretch! How should we reach you?</p>
               </div>
             )}
             {step === 8 && (
               <div className="animate-in fade-in slide-in-from-right-4">
-                <h3 className="text-3xl font-black italic mb-2 uppercase tracking-tighter">Final Review</h3>
+                <h3 className="text-3xl font-black mb-2 uppercase tracking-tighter">Final Review</h3>
                 <p className="text-gray-400">Almost a Boss. Confirm your details.</p>
               </div>
             )}
           </div>
-          <button 
-            onClick={fillTestData}
-            className="px-3 py-1.5 rounded-lg bg-yellow-400/10 text-yellow-400 border border-yellow-400/20 text-[10px] font-black uppercase tracking-widest hover:bg-yellow-400 hover:text-black transition-all"
-          >
-            Fill Test Data
-          </button>
         </div>
 
         {step === 1 && (
@@ -214,7 +183,7 @@ const WizardForm: React.FC<WizardFormProps> = ({ onSubmit, onCancel }) => {
           <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
             <div className="space-y-6">
               <Input label="Address Line 1" required value={formData.address1} onChange={v => setFormData({...formData, address1: v})} />
-              <Input label="Address Line 2 (Optional)" value={formData.address2} onChange={v => setFormData({...formData, address2: v})} />
+              <Input label="Address Line 2 (Optional)" value={formData.address2} onChange={v => setFormData({...formData, dba: v})} />
               <div className="grid grid-cols-2 gap-6">
                 <Input label="City" required value={formData.city} onChange={v => setFormData({...formData, city: v})} />
                 <Input label="State" required value={formData.state} onChange={v => setFormData({...formData, state: v})} />
@@ -290,7 +259,7 @@ const WizardForm: React.FC<WizardFormProps> = ({ onSubmit, onCancel }) => {
                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
               </div>
               <div>
-                <p className="font-bold text-xl">{formData.hasDeclPage ? 'AtlasPrime_Insurance_Declaration_2024.pdf' : 'Upload Declarations Page'}</p>
+                <p className="font-bold text-xl">{formData.hasDeclPage ? 'Policy_Document_Upload.pdf' : 'Upload Declarations Page'}</p>
                 <p className="text-gray-500 text-sm">PDF, JPG, or PNG (Max 15MB)</p>
               </div>
             </div>
@@ -309,7 +278,7 @@ const WizardForm: React.FC<WizardFormProps> = ({ onSubmit, onCancel }) => {
 
         {step === 8 && (
           <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
-            <div className="bg-white/5 rounded-2xl p-6 border border-white/5 text-sm space-y-4 leading-relaxed text-gray-400 italic">
+            <div className="bg-white/5 rounded-2xl p-6 border border-white/5 text-sm space-y-4 leading-relaxed text-gray-400">
                <p>This submission does not replace your current broker.</p>
                <p>The Insurance Boss provides an independent coverage review to identify gaps, savings, and better market positioning.</p>
             </div>
@@ -344,7 +313,7 @@ const WizardForm: React.FC<WizardFormProps> = ({ onSubmit, onCancel }) => {
           <button 
             disabled={isSubmitting}
             onClick={step === totalSteps ? handleFinalSubmit : handleNext}
-            className="flex-1 bg-yellow-400 text-black py-4 rounded-2xl font-black uppercase tracking-widest hover:bg-yellow-500 transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50"
+            className="flex-1 bg-yellow-400 text-black py-4 rounded-2xl font-black uppercase tracking-widest hover:bg-yellow-500 transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50 shadow-lg"
           >
             {isSubmitting ? (
               <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>

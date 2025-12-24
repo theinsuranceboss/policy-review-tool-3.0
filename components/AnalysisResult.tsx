@@ -1,4 +1,3 @@
-
 import React, { useRef, useState } from 'react';
 import { PolicyAnalysis } from '../types';
 
@@ -72,13 +71,13 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysis, onReset, onOp
   };
 
   return (
-    <div ref={dashboardRef} className="relative space-y-6 animate-in fade-in duration-1000 pb-24 max-w-7xl mx-auto px-4 bg-black text-white">
+    <div ref={dashboardRef} className="relative space-y-6 animate-in fade-in duration-1000 pb-24 max-w-7xl mx-auto px-4 bg-transparent text-white">
       
       {/* SECTION 1: TOP HEADER (SUMMARY & INSURED DETAILS) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* SUMMARY & SCORE CARD */}
-        <div className="lg:col-span-8 bg-[#0a0a0a] rounded-[3rem] p-10 border border-white/5 relative overflow-hidden flex flex-col md:flex-row items-center gap-10">
+        <div className="lg:col-span-8 bg-black/40 backdrop-blur-2xl rounded-[3rem] p-10 border border-white/10 relative overflow-hidden flex flex-col md:flex-row items-center gap-10 shadow-2xl">
           <div className="absolute right-10 top-1/2 -translate-y-1/2 opacity-[0.03] pointer-events-none">
             <svg className="w-64 h-64" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 2.18l7 3.89v5.93c0 4.62-3 8.94-7 10-4-1.06-7-5.38-7-10V8.07l7-3.89z"/>
@@ -87,10 +86,10 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysis, onReset, onOp
 
           <div className="flex flex-col items-center flex-shrink-0 text-center relative z-10">
             <div className="flex items-baseline gap-1">
-              <span className={`text-9xl font-black italic tracking-tighter leading-none ${getScoreColor()}`}>
+              <span className={`text-9xl font-black tracking-tighter leading-none ${getScoreColor()}`}>
                 {analysis.score.toFixed(1)}
               </span>
-              <span className="text-3xl font-black text-gray-700 italic tracking-tighter">/10</span>
+              <span className="text-3xl font-black text-gray-700 tracking-tighter">/10</span>
             </div>
             <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.5em] mt-2 mr-[-0.5em]">Boss Score</p>
           </div>
@@ -105,7 +104,7 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysis, onReset, onOp
               </div>
             </div>
             <div className="pl-6 border-l-4 border-yellow-400">
-              <p className="text-white text-2xl md:text-3xl font-bold leading-tight italic tracking-tight">
+              <p className="text-white text-2xl md:text-3xl font-bold leading-tight tracking-tight">
                 "{analysis.summary}"
               </p>
             </div>
@@ -113,7 +112,7 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysis, onReset, onOp
         </div>
 
         {/* INSURED DETAILS CARD */}
-        <div className="lg:col-span-4 bg-[#0a0a0a] rounded-[3rem] p-10 border border-white/5 relative overflow-hidden flex flex-col">
+        <div className="lg:col-span-4 bg-black/40 backdrop-blur-2xl rounded-[3rem] p-10 border border-white/10 relative overflow-hidden flex flex-col shadow-2xl">
           <div className="absolute left-0 top-10 bottom-10 w-1.5 bg-yellow-400 rounded-full" />
           <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.4em] mb-10">Insured Details</h3>
           <div className="space-y-8 flex-1 flex flex-col justify-center">
@@ -130,20 +129,20 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysis, onReset, onOp
 
       {/* SECTION 2: MIDDLE ROW (COVERAGE ANALYSIS & EXCLUSIONS) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-[#0a0a0a] rounded-[2.5rem] p-10 border border-white/5 space-y-8 h-full">
+        <div className="bg-black/40 backdrop-blur-2xl rounded-[2.5rem] p-10 border border-white/10 space-y-8 h-full shadow-xl">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center text-yellow-400 border border-white/10">
                <ShieldIcon />
             </div>
-            <h3 className="text-xl font-black italic uppercase tracking-tighter text-white">Coverage Analysis</h3>
+            <h3 className="text-xl font-black uppercase tracking-tighter text-white">Coverage Analysis</h3>
           </div>
-          <p className="text-gray-400 text-lg leading-relaxed font-medium">
+          <p className="text-gray-400 text-lg leading-relaxed font-semibold">
             {analysis.coverageAnalysis}
           </p>
         </div>
 
-        <div className="bg-[#0a0a0a] rounded-[2.5rem] p-10 border border-white/5 space-y-10 h-full">
-          <h3 className="text-xl font-black italic uppercase tracking-tighter text-red-500">Exclusions</h3>
+        <div className="bg-black/40 backdrop-blur-2xl rounded-[2.5rem] p-10 border border-white/10 space-y-10 h-full shadow-xl">
+          <h3 className="text-xl font-black uppercase tracking-tighter text-red-500">Exclusions</h3>
           <ul className="space-y-4">
             {analysis.foundExclusions?.map((ex, i) => (
               <li key={i} className="flex items-center gap-4 group">
@@ -156,7 +155,7 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysis, onReset, onOp
               </li>
             ))}
             {(!analysis.foundExclusions || analysis.foundExclusions.length === 0) && (
-              <li className="text-gray-600 italic">No critical exclusions detected in scan.</li>
+              <li className="text-gray-600 font-bold uppercase tracking-widest text-[10px]">No critical exclusions detected in scan.</li>
             )}
           </ul>
         </div>
@@ -185,7 +184,7 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysis, onReset, onOp
       </div>
 
       {/* NEW SECTION: FULL BUNDLE REVIEW REQUEST */}
-      <div className="bg-[#0a0a0a] rounded-[3rem] p-10 border border-yellow-400/20 relative overflow-hidden group shadow-[0_0_50px_rgba(250,204,21,0.05)]">
+      <div className="bg-black/40 backdrop-blur-3xl rounded-[3rem] p-10 border border-yellow-400/20 relative overflow-hidden group shadow-2xl">
         <div className="absolute -right-20 -top-20 w-64 h-64 bg-yellow-400/5 rounded-full blur-[100px] pointer-events-none group-hover:bg-yellow-400/10 transition-all duration-700" />
         
         <div className="relative z-10 flex flex-col lg:flex-row gap-12 items-center">
@@ -194,10 +193,10 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysis, onReset, onOp
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
               Account Maximization
             </div>
-            <h3 className="text-4xl font-black italic uppercase tracking-tighter leading-none">
+            <h3 className="text-4xl font-black uppercase tracking-tighter leading-none">
               Get a Full <span className="text-yellow-400">Bundle Review</span>
             </h3>
-            <p className="text-gray-400 text-lg font-medium leading-relaxed max-w-2xl">
+            <p className="text-gray-400 text-lg font-semibold leading-relaxed max-w-2xl">
               Do you have additional policies? For a truly comprehensive risk audit, the Boss needs to see your entire portfolio. Upload them here or list your policy types and current limits below.
             </p>
           </div>
@@ -205,7 +204,7 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysis, onReset, onOp
           <div className="w-full lg:w-1/2 space-y-4">
             {isBundleRequested ? (
               <div className="bg-yellow-400/10 border border-yellow-400/30 p-8 rounded-[2rem] text-center animate-in zoom-in-95">
-                <p className="text-yellow-400 font-black italic text-xl uppercase tracking-tighter">Bundle Audit Initiated!</p>
+                <p className="text-yellow-400 font-black text-xl uppercase tracking-tighter">Bundle Audit Initiated!</p>
                 <p className="text-gray-500 text-sm mt-2 font-bold uppercase tracking-widest">Our risk specialists are standing by.</p>
               </div>
             ) : (
@@ -216,7 +215,7 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysis, onReset, onOp
                       placeholder="e.g. Workers Comp ($1M/$1M), GL Excess ($5M)..."
                       value={bundleInfo}
                       onChange={(e) => setBundleInfo(e.target.value)}
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-sm font-medium focus:border-yellow-400 transition-all outline-none min-h-[120px] placeholder:text-gray-600"
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-sm font-bold focus:border-yellow-400 transition-all outline-none min-h-[120px] placeholder:text-gray-600"
                     />
                     <div className="absolute bottom-4 right-4 text-[10px] text-gray-600 font-black uppercase tracking-widest">
                       Policy Details
@@ -243,7 +242,7 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysis, onReset, onOp
       </div>
 
       {/* ACTION BAR */}
-      <div className="pdf-hide pt-10 flex flex-col md:flex-row justify-between items-center gap-6 border-t border-white/5">
+      <div className="pdf-hide pt-10 flex flex-col md:flex-row justify-between items-center gap-6 border-t border-white/10">
         <button 
           onClick={onReset} 
           className="text-gray-500 hover:text-white font-black text-xs uppercase tracking-[0.4em] transition-all flex items-center gap-3 group"
@@ -262,7 +261,7 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysis, onReset, onOp
           </button>
           <button 
             onClick={handleDownloadPDF} 
-            className="bg-yellow-400 px-12 py-5 rounded-2xl text-black font-black text-xs uppercase tracking-widest hover:bg-yellow-500 transition-all shadow-[0_15px_30px_rgba(250,204,21,0.2)] active:scale-95"
+            className="bg-yellow-400 px-12 py-5 rounded-2xl text-black font-black text-xs uppercase tracking-widest hover:bg-yellow-500 transition-all shadow-xl active:scale-95"
           >
             Export PDF Report
           </button>
@@ -275,7 +274,7 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysis, onReset, onOp
 const DetailItem: React.FC<{ label: string; value: string; large?: boolean; highlight?: boolean }> = ({ label, value, large, highlight }) => (
   <div className="space-y-1.5">
     <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">{label}</p>
-    <p className={`font-black uppercase tracking-tight italic leading-none ${large ? 'text-2xl' : 'text-base'} ${highlight ? 'text-yellow-400' : 'text-white'}`}>
+    <p className={`font-black uppercase tracking-tight leading-none ${large ? 'text-2xl' : 'text-base'} ${highlight ? 'text-yellow-400' : 'text-white'}`}>
       {value}
     </p>
   </div>
@@ -289,15 +288,15 @@ const ColumnCard: React.FC<{ title: string; color: 'green' | 'red' | 'yellow'; i
   };
 
   return (
-    <div className="bg-[#0a0a0a] border border-white/5 rounded-[2.5rem] p-10 space-y-10 flex flex-col h-full">
-      <h3 className={`text-xl font-black italic uppercase tracking-tighter ${titleColor[color]}`}>{title}</h3>
+    <div className="bg-black/40 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-10 space-y-10 flex flex-col h-full shadow-lg">
+      <h3 className={`text-xl font-black uppercase tracking-tighter ${titleColor[color]}`}>{title}</h3>
       <ul className="space-y-6 flex-1">
         {items.map((item, i) => (
           <li key={i} className="flex gap-4 items-start group">
             <div className={`mt-1 flex-shrink-0 ${titleColor[color]}`}>
               {icon}
             </div>
-            <p className="text-gray-400 text-base font-semibold leading-relaxed group-hover:text-white transition-colors">{item}</p>
+            <p className="text-gray-400 text-base font-bold leading-relaxed group-hover:text-white transition-colors uppercase tracking-tight">{item}</p>
           </li>
         ))}
       </ul>

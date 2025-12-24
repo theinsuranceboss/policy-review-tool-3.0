@@ -1,10 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { PolicyAnalysis } from "../types";
 
-const MODEL_NAME = 'gemini-3-flash-preview';
-
-// Use the provided API key directly to ensure instant functionality as requested by the user
-const API_KEY = "AIzaSyD96G2PAwNLzwCzibM_meXSuDZP90Gw3XM";
+const MODEL_NAME = 'gemini-3-pro-preview';
 
 export const calculateFileHash = async (base64: string): Promise<string> => {
   try {
@@ -28,8 +25,7 @@ export const calculateFileHash = async (base64: string): Promise<string> => {
 };
 
 export const analyzePolicy = async (file: File): Promise<PolicyAnalysis> => {
-  // Initializing with the hardcoded key to resolve the browser environment error
-  const ai = new GoogleGenAI({ apiKey: API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
   
   const base64Data = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -60,7 +56,7 @@ export const analyzePolicy = async (file: File): Promise<PolicyAnalysis> => {
      - Identify specific Exclusion clauses.
   
   3. BOSS SCORING:
-     - Score 0-10 on coverage health.
+     - Score 0-10 on coverage health based on industry standards.
 
   OUTPUT JSON. Be aggressive in finding contact details.`;
 
