@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 
 const { Link } = ReactRouterDOM;
@@ -13,29 +13,6 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ isAdmin, setIsAdmin, onOpenWizard, onGoHome }) => {
   const location = ReactRouterDOM.useLocation();
   const navigate = ReactRouterDOM.useNavigate();
-  const [hasKey, setHasKey] = useState<boolean>(true);
-
-  useEffect(() => {
-    const checkKey = async () => {
-      if ((window as any).aistudio?.hasSelectedApiKey) {
-        const selected = await (window as any).aistudio.hasSelectedApiKey();
-        setHasKey(selected || !!process.env.API_KEY);
-      } else {
-        setHasKey(!!process.env.API_KEY);
-      }
-    };
-    checkKey();
-    const timer = setInterval(checkKey, 2000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const handleConnectKey = async () => {
-    if ((window as any).aistudio?.openSelectKey) {
-      await (window as any).aistudio.openSelectKey();
-      // Assume success as per guidelines to avoid race condition
-      setHasKey(true);
-    }
-  };
 
   const handleLogout = () => {
     setIsAdmin(false);
@@ -78,16 +55,6 @@ const Header: React.FC<HeaderProps> = ({ isAdmin, setIsAdmin, onOpenWizard, onGo
       </div>
 
       <nav className="flex items-center gap-8">
-        {!hasKey && (
-          <button 
-            onClick={handleConnectKey}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 animate-pulse shadow-lg"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
-            Connect Key
-          </button>
-        )}
-
         {isAdmin ? (
           <div className="flex items-center gap-6">
              <Link to="/admin" className={`text-xs font-black uppercase tracking-widest transition-colors ${location.pathname === '/admin' ? 'text-yellow-400' : 'text-gray-500 hover:text-white'}`}>
