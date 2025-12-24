@@ -50,9 +50,8 @@ const App: React.FC = () => {
   const [isEmbedded, setIsEmbedded] = useState(false);
 
   useEffect(() => {
-    // Check for embed mode in URL
     const params = new URLSearchParams(window.location.search);
-    const embedMode = params.get('embed') === 'true' || window.location.hash.includes('embed=true');
+    const embedMode = params.get('embed') === 'true' || window.location.href.includes('embed=true');
     setIsEmbedded(embedMode);
     
     if (embedMode) {
@@ -151,7 +150,7 @@ const App: React.FC = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black">
         <div className="text-yellow-400 font-black italic text-2xl animate-pulse tracking-tighter">
-          OPENING VAULT...
+          OPENING LOCAL VAULT...
         </div>
       </div>
     );
@@ -219,7 +218,7 @@ const App: React.FC = () => {
           <footer className="py-12 border-t border-white/5 text-center text-gray-500 text-sm bg-transparent">
             <p>© {new Date().getFullYear()} The Insurance Boss Policy Review Tool.</p>
             <div className="mt-4 flex justify-center gap-6">
-              <a href="https://theinsuranceboss.com" className="hover:text-yellow-400 transition-colors">Website</a>
+              <a href="https://theinsuranceboss.com" className="hover:text-yellow-400 transition-colors">Main Website</a>
               <a href="#" className="hover:text-yellow-400 transition-colors">Privacy</a>
               <a href="#" className="hover:text-yellow-400 transition-colors">Terms</a>
             </div>

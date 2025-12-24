@@ -20,9 +20,10 @@
       }
       #root { background: transparent !important; }
       
-      /* Global Transparency Support */
+      /* Soporte para modo embebido transparente */
       body.is-embedded {
         background-color: transparent !important;
+        background-image: none !important;
       }
       body.is-embedded .boss-gradient {
         background: transparent !important;
@@ -37,6 +38,7 @@
       .boss-gradient {
         background: radial-gradient(circle at top right, rgba(250, 204, 21, 0.1), transparent 40%),
                     radial-gradient(circle at bottom left, rgba(250, 204, 21, 0.05), transparent 40%);
+        background-color: #000;
       }
       ::-webkit-scrollbar { width: 0px; background: transparent; }
     </style>
@@ -53,7 +55,6 @@
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
 </head>
   <body>
     <div id="root"></div>

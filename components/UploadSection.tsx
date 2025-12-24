@@ -25,14 +25,14 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
     }
 
     if (!userName.trim() || !userEmail.trim()) {
-      setError("Boss, we need your Name and Email to secure the audit results.");
+      setError("We need your name and email to secure the audit results.");
       return;
     }
 
     setIsUploading(true);
     setError(null);
     setUploadProgress(10);
-    setStatusText("Reading File...");
+    setStatusText("Reading file...");
 
     let interval: any = null;
 
@@ -40,17 +40,17 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
       const base64Data = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
-        reader.onerror = () => reject(new Error("Failed to read file"));
+        reader.onerror = () => reject(new Error("Error reading file"));
         reader.readAsDataURL(file);
       });
 
-      setStatusText("Securing Vault Access...");
+      setStatusText("Initiating Private Audit...");
       const fileHash = await calculateFileHash(base64Data);
 
       const existingMatch = existingPolicies.find(p => p.fileHash === fileHash);
       
       if (existingMatch) {
-        setStatusText("Retrieved from Vault!");
+        setStatusText("Retrieved from Local Vault");
         setUploadProgress(100);
         setTimeout(() => {
           onAnalysisComplete(existingMatch, { name: userName, email: userEmail });
@@ -70,7 +70,6 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
 
       const analysis = await analyzePolicy(file);
       
-      // Override or supplement AI extraction with user-provided contact info
       if (!analysis.contactEmail) analysis.contactEmail = userEmail;
       
       if (interval) clearInterval(interval);
@@ -84,7 +83,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
       }, 500);
 
     } catch (err: any) {
-      console.error("Upload process error:", err);
+      console.error("Process error:", err);
       setError(err.message || "An unexpected error occurred during analysis.");
       setIsUploading(false);
     } finally {
@@ -96,15 +95,14 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
     <div className="flex flex-col items-center justify-center text-center py-12 md:py-24 space-y-16 animate-in fade-in duration-1000">
       <div className="space-y-6 max-w-4xl px-4">
         <h2 className="text-6xl md:text-8xl font-black tracking-tighter text-white italic leading-[0.9]">
-          Is Your Policy <span className="text-yellow-400">Protecting</span> You?
+          Is your policy <span className="text-yellow-400">protecting</span> you?
         </h2>
         <p className="text-gray-400 text-xl md:text-2xl font-medium italic max-w-2xl mx-auto">
-          Upload your policy for an instant, high-stakes technical audit. Identify traps before they identify you.
+          Upload your policy for an instant technical audit. Identify traps before they identify you.
         </p>
       </div>
 
       <div className="w-full max-w-4xl px-6 space-y-8">
-        {/* User Identity Section */}
         {!isUploading && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left max-w-3xl mx-auto mb-4">
             <div className="space-y-3">
@@ -130,7 +128,6 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
           </div>
         )}
 
-        {/* Upload Area */}
         <div 
           onClick={() => !isUploading && fileInputRef.current?.click()}
           className={`relative border border-white/10 rounded-[4rem] p-12 md:p-20 transition-all cursor-pointer group overflow-hidden bg-[#0a0a0a] shadow-2xl
@@ -175,9 +172,9 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
               </div>
               <div className="space-y-2">
                 <h3 className="text-3xl font-black italic tracking-tighter uppercase group-hover:text-yellow-400 transition-colors">
-                  {(!userName.trim() || !userEmail.trim()) ? 'Enter Details First' : 'Click to Upload Policy'}
+                  {(!userName.trim() || !userEmail.trim()) ? 'Enter your details first' : 'Click to upload policy'}
                 </h3>
-                <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Deterministic & Private Vault Storage</p>
+                <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Private & Local Storage</p>
               </div>
             </div>
           )}
@@ -193,7 +190,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
               onClick={() => setError(null)}
               className="mt-4 text-[10px] font-black uppercase tracking-[0.3em] text-red-400/40 hover:text-red-400 underline transition-colors"
             >
-              Dismiss Error
+              Clear Error
             </button>
           </div>
         )}
@@ -202,7 +199,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
       <div className="flex items-center gap-12 opacity-30">
         <div className="flex items-center gap-3">
           <svg className="w-5 h-5 text-green-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-          <span className="text-xs font-black uppercase tracking-widest">Secure Vault</span>
+          <span className="text-xs font-black uppercase tracking-widest">Local Vault</span>
         </div>
         <div className="flex items-center gap-3">
            <svg className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>

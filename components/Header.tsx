@@ -33,9 +33,9 @@ const Header: React.FC<HeaderProps> = ({ isAdmin, setIsAdmin, onOpenWizard, onGo
           <div>
             <div className="flex items-center gap-3">
               <h1 className="font-black text-2xl tracking-tighter leading-none italic uppercase">The Insurance Boss</h1>
-              <div className="flex items-center gap-1.5 bg-green-500/10 text-green-400 text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full border border-green-500/20">
-                <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
-                Vault Synced
+              <div className="flex items-center gap-1.5 bg-yellow-400/10 text-yellow-400 text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full border border-yellow-400/20">
+                <div className="w-1.5 h-1.5 bg-yellow-400 rounded-full" />
+                Local Vault
               </div>
             </div>
             <p className="text-[10px] text-gray-500 font-black tracking-[0.4em] uppercase mt-1">Policy Review Authority</p>
@@ -63,7 +63,7 @@ const Header: React.FC<HeaderProps> = ({ isAdmin, setIsAdmin, onOpenWizard, onGo
               onClick={handleLogout}
               className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-red-500/5 hover:bg-red-500/10 text-red-400 text-xs font-black uppercase tracking-widest transition-all border border-red-500/10"
             >
-              Sign Out
+              Logout
             </button>
           </div>
         ) : (
@@ -72,10 +72,10 @@ const Header: React.FC<HeaderProps> = ({ isAdmin, setIsAdmin, onOpenWizard, onGo
               onClick={onOpenWizard}
               className="hidden md:block px-8 py-3.5 rounded-2xl bg-yellow-400 text-black text-xs font-black uppercase tracking-widest hover:bg-yellow-500 transition-all active:scale-95 shadow-[0_10px_20px_rgba(250,204,21,0.2)]"
             >
-              Get a Quote
+              Get Quote
             </button>
             <Link to="/admin" className="px-6 py-3.5 rounded-2xl bg-[#0a0a0a] text-gray-400 border border-white/10 text-xs font-black uppercase tracking-widest hover:text-white hover:border-white/20 transition-all">
-              Staff Portal
+              Staff Access
             </Link>
           </div>
         )}
