@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { PolicyAnalysis } from "../types";
 
@@ -15,7 +16,7 @@ export const analyzePolicy = async (file: File): Promise<PolicyAnalysis> => {
     throw new Error("Boss, your API key is missing. Please click 'Staff Access' and ensure your key is selected in the AI Studio environment.");
   }
 
-  // Always create a fresh instance right before making an API call.
+  // Always create a fresh instance right before making an API call to ensure it uses the most up-to-date API key.
   const ai = new GoogleGenAI({ apiKey });
   
   const base64Data = await new Promise<string>((resolve, reject) => {
@@ -39,7 +40,8 @@ export const analyzePolicy = async (file: File): Promise<PolicyAnalysis> => {
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      // Upgrading to gemini-3-pro-preview for advanced extraction and reasoning tasks.
+      model: 'gemini-3-pro-preview',
       contents: {
         parts: [
           { inlineData: { data: base64Data, mimeType: 'application/pdf' } },

@@ -1,4 +1,8 @@
+
 import React, { useState } from 'react';
+
+// Removed redundant 'declare global' block that conflicted with environment-provided types.
+// We access aistudio properties via type casting to ensure compatibility with built-in global types.
 
 interface AdminLoginProps {
   onLogin: () => void;
@@ -19,8 +23,10 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
   };
 
   const handleActivateKey = async () => {
-    if (window.aistudio?.openSelectKey) {
-      await window.aistudio.openSelectKey();
+    // Accessing aistudio safely through type casting to satisfy global type requirements.
+    const aistudio = (window as any).aistudio;
+    if (aistudio && typeof aistudio.openSelectKey === 'function') {
+      await aistudio.openSelectKey();
     } else {
       alert("Activation dialog only available in AI Studio environment.");
     }
@@ -65,9 +71,19 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
         </button>
       </form>
 
-      <p className="text-center text-gray-500 text-sm">
-        Protected Area. Authorized Users Only.
-      </p>
+      <div className="space-y-4">
+        <p className="text-center text-gray-500 text-sm">
+          Protected Area. Authorized Users Only.
+        </p>
+        <a 
+          href="https://ai.google.dev/gemini-api/docs/billing" 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="text-[10px] text-yellow-400/40 hover:text-yellow-400 transition-colors uppercase font-black tracking-widest"
+        >
+          API Billing Documentation
+        </a>
+      </div>
     </div>
   );
 };
