@@ -6,6 +6,7 @@
     <title>The Insurance Boss - Policy Review</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -58,7 +59,7 @@
         display: none !important;
       }
 
-      /* Scrollbar transparency - minimal impact */
+      /* Scrollbar transparency */
       ::-webkit-scrollbar {
         width: 6px;
       }
@@ -73,7 +74,6 @@
         background: rgba(255, 255, 255, 0.15);
       }
       
-      /* Remove potential iframe/root borders */
       * {
         outline: none !important;
         font-style: normal !important;

@@ -1,5 +1,5 @@
+
 import React, { useState, useEffect } from 'react';
-// Fixing react-router-dom imports by using the library namespace to avoid named export errors in some environments
 import * as ReactRouterDOM from 'react-router-dom';
 import Header from './components/Header';
 import UploadSection from './components/UploadSection';
@@ -9,38 +9,9 @@ import AdminLogin from './components/AdminLogin';
 import WizardForm from './components/WizardForm';
 import { PolicyAnalysis, QuoteRequest } from './types';
 import { storage } from './services/storage';
+import { gDrive } from './services/googleDriveService';
 
 const { HashRouter, Routes, Route } = ReactRouterDOM;
-
-const HeaderWrapper: React.FC<{ 
-  isAdmin: boolean; 
-  setIsAdmin: (v: boolean) => void; 
-  setShowWizard: (v: boolean) => void;
-  setCurrentAnalysis: (v: PolicyAnalysis | null) => void;
-}> = ({ isAdmin, setIsAdmin, setShowWizard, setCurrentAnalysis }) => {
-  const navigate = ReactRouterDOM.useNavigate();
-  
-  const handleOpenWizard = () => {
-    setCurrentAnalysis(null);
-    setShowWizard(true);
-    navigate('/');
-  };
-
-  const handleGoHome = () => {
-    setCurrentAnalysis(null);
-    setShowWizard(false);
-    navigate('/');
-  };
-
-  return (
-    <Header 
-      isAdmin={isAdmin} 
-      setIsAdmin={setIsAdmin} 
-      onOpenWizard={handleOpenWizard} 
-      onGoHome={handleGoHome}
-    />
-  );
-};
 
 const App: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -56,10 +27,6 @@ const App: React.FC = () => {
     const embedMode = params.get('embed') === 'true' || window.location.href.includes('embed=true');
     setIsEmbedded(embedMode);
     
-    if (embedMode) {
-      document.body.classList.add('is-embedded');
-    }
-
     const loadData = async () => {
       try {
         const p = await storage.getPolicies();
@@ -75,50 +42,78 @@ const App: React.FC = () => {
   }, []);
 
   const handleNewAnalysis = async (analysis: PolicyAnalysis, userDetails?: { name: string; email: string }) => {
-    const exists = allPolicies.find(p => p.id === analysis.id);
-    if (!exists) {
-      await storage.savePolicy(analysis);
-      setAllPolicies(prev => [analysis, ...prev]);
+    // 1. Save to Local Vault
+    await storage.savePolicy(analysis);
+    setAllPolicies(prev => [analysis, ...prev]);
 
-      const addressParts = (analysis.insuredAddress || '').split(',');
-      const cityStateZip = addressParts[addressParts.length - 1]?.trim() || '';
-      const zipMatch = cityStateZip.match(/\d{5}/);
-      const stateMatch = cityStateZip.match(/[A-Z]{2}/);
-      
-      const autoLead: QuoteRequest = {
-        id: `auto-${analysis.id}`,
-        submissionDate: new Date().toLocaleString(),
-        status: 'New',
-        businessName: analysis.insuredName,
-        fein: analysis.fein || 'EXTRACTED',
-        yearsInBusiness: 'EXTRACTED',
-        address1: analysis.insuredAddress || '',
-        city: addressParts.length > 1 ? addressParts[addressParts.length-2]?.trim() : 'EXTRACTED',
-        state: stateMatch ? stateMatch[0] : 'EXTRACTED',
-        zip: zipMatch ? zipMatch[0] : 'EXTRACTED',
-        country: 'United States',
-        industries: analysis.industry ? [analysis.industry] : ['Extracted from Policy'],
-        hasActiveCoverage: true,
-        knowsPremium: false,
-        hasDeclPage: true,
-        contactName: userDetails?.name || analysis.insuredName || 'Insured Entity',
-        contactEmail: userDetails?.email || analysis.contactEmail || '',
-        contactPhone: analysis.contactPhone || '',
-        extractedCoverage: analysis.coverageLimits.map(l => `${l.label}: ${l.limit}`).join('\n'),
-        sourcePolicyId: analysis.id
-      };
-
-      await handleNewLead(autoLead);
+    // 2. Mirror to Google Drive if connected
+    if (gDrive.isConnected()) {
+      try {
+        await gDrive.uploadFile(
+          `${analysis.insuredName}_${analysis.policyNumber || analysis.id}.pdf`,
+          'Policies',
+          `data:application/pdf;base64,${analysis.fileData}`,
+          'application/pdf'
+        );
+      } catch (e) {
+        console.warn("GDrive Policy Sync Failed", e);
+      }
     }
+
+    // 3. Create Smart Lead automatically from analysis
+    const addressParts = (analysis.insuredAddress || '').split(',');
+    const cityStateZip = addressParts[addressParts.length - 1]?.trim() || '';
+    const zipMatch = cityStateZip.match(/\d{5}/);
+    const stateMatch = cityStateZip.match(/[A-Z]{2}/);
+    
+    const autoLead: QuoteRequest = {
+      id: `auto-${analysis.id}`,
+      submissionDate: new Date().toLocaleString(),
+      status: 'New',
+      businessName: analysis.insuredName,
+      fein: analysis.fein || 'EXTRACTED',
+      yearsInBusiness: 'EXTRACTED',
+      address1: analysis.insuredAddress || '',
+      city: addressParts.length > 1 ? addressParts[addressParts.length-2]?.trim() : 'EXTRACTED',
+      state: stateMatch ? stateMatch[0] : 'EXTRACTED',
+      zip: zipMatch ? zipMatch[0] : 'EXTRACTED',
+      country: 'United States',
+      industries: analysis.industry ? [analysis.industry] : ['Extracted from Policy'],
+      hasActiveCoverage: true,
+      knowsPremium: false,
+      hasDeclPage: true,
+      contactName: userDetails?.name || analysis.insuredName || 'Insured Entity',
+      contactEmail: userDetails?.email || analysis.contactEmail || '',
+      contactPhone: analysis.contactPhone || '',
+      extractedCoverage: analysis.coverageLimits.map(l => `${l.label}: ${l.limit}`).join('\n'),
+      sourcePolicyId: analysis.id
+    };
+
+    await handleNewLead(autoLead);
     setCurrentAnalysis(analysis);
   };
 
   const handleNewLead = async (lead: QuoteRequest) => {
+    // 1. Save to Local Vault
     await storage.saveLead(lead);
     setAllLeads(prev => {
       const filtered = prev.filter(l => l.id !== lead.id);
       return [lead, ...filtered];
     });
+
+    // 2. Mirror to Google Drive if connected
+    if (gDrive.isConnected()) {
+      try {
+        await gDrive.uploadFile(
+          `Lead_${lead.businessName}_${lead.id}.json`,
+          'Smart Leads',
+          JSON.stringify(lead, null, 2),
+          'application/json'
+        );
+      } catch (e) {
+        console.warn("GDrive Lead Sync Failed", e);
+      }
+    }
   };
 
   const handleDeletePolicy = async (id: string) => {
@@ -152,7 +147,7 @@ const App: React.FC = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-transparent">
         <div className="text-yellow-400 font-black text-2xl animate-pulse tracking-tighter uppercase">
-          Initializing...
+          Initializing Vault...
         </div>
       </div>
     );
@@ -162,11 +157,11 @@ const App: React.FC = () => {
     <HashRouter>
       <div className={`min-h-screen bg-transparent text-white selection:bg-yellow-500/30 border-none`}>
         {!isEmbedded && (
-          <HeaderWrapper 
+          <Header 
             isAdmin={isAdmin} 
             setIsAdmin={setIsAdmin} 
-            setShowWizard={setShowWizard}
-            setCurrentAnalysis={setCurrentAnalysis}
+            onOpenWizard={() => { setCurrentAnalysis(null); setShowWizard(true); }} 
+            onGoHome={() => { setCurrentAnalysis(null); setShowWizard(false); }}
           />
         )}
         
@@ -174,12 +169,7 @@ const App: React.FC = () => {
           <Routes>
             <Route path="/" element={
               showWizard ? (
-                <WizardForm 
-                  onSubmit={(lead) => {
-                    handleNewLead(lead);
-                  }} 
-                  onCancel={() => setShowWizard(false)} 
-                />
+                <WizardForm onSubmit={handleNewLead} onCancel={() => setShowWizard(false)} />
               ) : currentAnalysis ? (
                 <AnalysisResult 
                   analysis={currentAnalysis} 
