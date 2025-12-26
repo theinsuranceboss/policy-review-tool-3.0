@@ -9,7 +9,7 @@ import AdminLogin from './components/AdminLogin';
 import WizardForm from './components/WizardForm';
 import { PolicyAnalysis, QuoteRequest } from './types';
 import { storage } from './services/storage';
-import { gDrive } from './services/googleDriveService';
+import { bossServer } from './services/serverService';
 
 const { HashRouter, Routes, Route } = ReactRouterDOM;
 
@@ -29,43 +29,34 @@ const App: React.FC = () => {
     
     const loadData = async () => {
       try {
+        // Sync with Central Vault on load
+        const cloudData = await bossServer.fetchGlobalVault();
+        
+        // Merge with local storage
+        for (const p of cloudData.policies) await storage.savePolicy(p);
+        for (const l of cloudData.leads) await storage.saveLead(l);
+
         const p = await storage.getPolicies();
         const l = await storage.getLeads();
         setAllPolicies(p);
         setAllLeads(l);
         setIsDataLoaded(true);
       } catch (err) {
-        console.error("Failed to load vault:", err);
+        console.error("Failed to sync with Boss Central Server:", err);
       }
     };
     loadData();
   }, []);
 
   const handleNewAnalysis = async (analysis: PolicyAnalysis, userDetails?: { name: string; email: string }) => {
-    // 1. Save to Local Vault
+    // 1. Save locally for the user
     await storage.savePolicy(analysis);
     setAllPolicies(prev => [analysis, ...prev]);
 
-    // 2. Mirror to Google Drive if connected
-    if (gDrive.isConnected()) {
-      try {
-        await gDrive.uploadFile(
-          `${analysis.insuredName}_${analysis.policyNumber || analysis.id}.pdf`,
-          'Policies',
-          `data:application/pdf;base64,${analysis.fileData}`,
-          'application/pdf'
-        );
-      } catch (e) {
-        console.warn("GDrive Policy Sync Failed", e);
-      }
-    }
+    // 2. AUTOMATIC UPSTREAM TO BOSS SERVER (Silent)
+    await bossServer.upstream('policy', analysis);
 
     // 3. Create Smart Lead automatically from analysis
-    const addressParts = (analysis.insuredAddress || '').split(',');
-    const cityStateZip = addressParts[addressParts.length - 1]?.trim() || '';
-    const zipMatch = cityStateZip.match(/\d{5}/);
-    const stateMatch = cityStateZip.match(/[A-Z]{2}/);
-    
     const autoLead: QuoteRequest = {
       id: `auto-${analysis.id}`,
       submissionDate: new Date().toLocaleString(),
@@ -74,18 +65,17 @@ const App: React.FC = () => {
       fein: analysis.fein || 'EXTRACTED',
       yearsInBusiness: 'EXTRACTED',
       address1: analysis.insuredAddress || '',
-      city: addressParts.length > 1 ? addressParts[addressParts.length-2]?.trim() : 'EXTRACTED',
-      state: stateMatch ? stateMatch[0] : 'EXTRACTED',
-      zip: zipMatch ? zipMatch[0] : 'EXTRACTED',
+      city: 'EXTRACTED',
+      state: 'EXTRACTED',
+      zip: 'EXTRACTED',
       country: 'United States',
-      industries: analysis.industry ? [analysis.industry] : ['Extracted from Policy'],
+      industries: analysis.industry ? [analysis.industry] : ['Policy Audit'],
       hasActiveCoverage: true,
       knowsPremium: false,
       hasDeclPage: true,
-      contactName: userDetails?.name || analysis.insuredName || 'Insured Entity',
+      contactName: userDetails?.name || analysis.insuredName || 'Insured',
       contactEmail: userDetails?.email || analysis.contactEmail || '',
       contactPhone: analysis.contactPhone || '',
-      extractedCoverage: analysis.coverageLimits.map(l => `${l.label}: ${l.limit}`).join('\n'),
       sourcePolicyId: analysis.id
     };
 
@@ -94,26 +84,14 @@ const App: React.FC = () => {
   };
 
   const handleNewLead = async (lead: QuoteRequest) => {
-    // 1. Save to Local Vault
     await storage.saveLead(lead);
     setAllLeads(prev => {
       const filtered = prev.filter(l => l.id !== lead.id);
       return [lead, ...filtered];
     });
 
-    // 2. Mirror to Google Drive if connected
-    if (gDrive.isConnected()) {
-      try {
-        await gDrive.uploadFile(
-          `Lead_${lead.businessName}_${lead.id}.json`,
-          'Smart Leads',
-          JSON.stringify(lead, null, 2),
-          'application/json'
-        );
-      } catch (e) {
-        console.warn("GDrive Lead Sync Failed", e);
-      }
-    }
+    // AUTOMATIC UPSTREAM TO BOSS SERVER (Silent)
+    await bossServer.upstream('lead', lead);
   };
 
   const handleDeletePolicy = async (id: string) => {
@@ -132,6 +110,7 @@ const App: React.FC = () => {
       const updated = { ...lead, status };
       await storage.saveLead(updated);
       setAllLeads(prev => prev.map(l => l.id === id ? updated : l));
+      await bossServer.upstream('lead', updated);
     }
   };
 
@@ -147,7 +126,7 @@ const App: React.FC = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-transparent">
         <div className="text-yellow-400 font-black text-2xl animate-pulse tracking-tighter uppercase">
-          Initializing Vault...
+          Handshaking With Boss Server...
         </div>
       </div>
     );
@@ -155,7 +134,7 @@ const App: React.FC = () => {
 
   return (
     <HashRouter>
-      <div className={`min-h-screen bg-transparent text-white selection:bg-yellow-500/30 border-none`}>
+      <div className="min-h-screen bg-transparent text-white border-none">
         {!isEmbedded && (
           <Header 
             isAdmin={isAdmin} 
