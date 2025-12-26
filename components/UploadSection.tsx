@@ -23,7 +23,6 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
     setError(null);
 
     try {
-      // Analyze the policy using the Gemini API.
       const analysis = await analyzePolicy(file);
       onAnalysisComplete(analysis, { name: userName, email: userEmail });
     } catch (err: any) {
@@ -39,11 +38,11 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
       
       {/* HEADER */}
       <div className="mb-16 space-y-4">
-        <h1 className="text-6xl md:text-[7.5rem] font-black italic leading-[0.85] tracking-tighter">
+        <h1 className="text-6xl md:text-[7.5rem] font-black leading-[0.85] tracking-tighter text-white">
           Is Your Policy <br />
           <span className="text-yellow-400">Protecting</span> You?
         </h1>
-        <p className="text-gray-500 text-lg md:text-2xl font-bold max-w-2xl mx-auto leading-tight italic opacity-80">
+        <p className="text-gray-400 text-lg md:text-2xl font-bold max-w-2xl mx-auto leading-tight opacity-90">
           Upload your policy for an instant technical audit. Identify traps before they identify you.
         </p>
       </div>
@@ -52,23 +51,23 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
       {!isUploading && (
         <div className="w-full max-w-3xl grid grid-cols-1 md:grid-cols-2 gap-8 text-left mb-10">
           <div className="space-y-3">
-            <label className="text-[11px] font-black text-gray-600 tracking-wider ml-1">Full Name</label>
+            <label className="text-[11px] font-black text-gray-500 tracking-wider ml-1">Full Name</label>
             <input 
               type="text"
               value={userName}
               onChange={(e) => setUserName(e.target.value)}
               placeholder="Enter your name"
-              className="w-full bg-[#0a0a0a] border border-white/5 rounded-2xl px-6 py-5 text-sm font-bold focus:outline-none focus:border-yellow-400/20 transition-all text-white"
+              className="w-full bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl px-6 py-5 text-sm font-bold focus:outline-none focus:border-yellow-400/40 transition-all text-white placeholder:text-gray-600"
             />
           </div>
           <div className="space-y-3">
-            <label className="text-[11px] font-black text-gray-600 tracking-wider ml-1">Email Address</label>
+            <label className="text-[11px] font-black text-gray-500 tracking-wider ml-1">Email Address</label>
             <input 
               type="email"
               value={userEmail}
               onChange={(e) => setUserEmail(e.target.value)}
               placeholder="boss@example.com"
-              className="w-full bg-[#0a0a0a] border border-white/5 rounded-2xl px-6 py-5 text-sm font-bold focus:outline-none focus:border-yellow-400/20 transition-all text-white"
+              className="w-full bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl px-6 py-5 text-sm font-bold focus:outline-none focus:border-yellow-400/40 transition-all text-white placeholder:text-gray-600"
             />
           </div>
         </div>
@@ -77,8 +76,8 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
       {/* MAIN UPLOAD BOX */}
       <div 
         onClick={() => !isUploading && isFormValid && fileInputRef.current?.click()}
-        className={`w-full max-w-4xl min-h-[450px] rounded-[4.5rem] bg-[#050505] border border-white/5 flex flex-col items-center justify-center p-12 transition-all relative
-          ${isFormValid && !isUploading ? 'cursor-pointer hover:bg-white/[0.01] active:scale-[0.99] border-white/10 shadow-[0_40px_100px_rgba(0,0,0,0.6)]' : 'opacity-80'}
+        className={`w-full max-w-4xl min-h-[450px] rounded-[4.5rem] border border-white/10 flex flex-col items-center justify-center p-12 transition-all relative overflow-hidden bg-black/20 backdrop-blur-xl
+          ${isFormValid && !isUploading ? 'cursor-pointer hover:bg-white/[0.03] active:scale-[0.99] border-white/20 shadow-[0_40px_100px_rgba(0,0,0,0.4)]' : 'opacity-80'}
         `}
       >
         <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="application/pdf" />
@@ -86,19 +85,22 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
         {isUploading ? (
           <div className="space-y-8 flex flex-col items-center">
             <div className="w-20 h-20 border-[6px] border-yellow-400/10 border-t-yellow-400 rounded-full animate-spin" />
-            <h3 className="text-3xl font-black italic tracking-tighter text-white">Boss AI Analysis...</h3>
+            <h3 className="text-3xl font-black tracking-tighter text-white">Boss AI Analysis...</h3>
           </div>
         ) : (
           <div className="space-y-12 flex flex-col items-center">
-            <div className="bg-white/[0.03] p-10 rounded-[2.5rem] border border-white/5 flex items-center justify-center">
-              <svg className="w-16 h-16 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="bg-white/[0.05] p-10 rounded-[2.5rem] border border-white/10 flex items-center justify-center">
+              <svg className="w-16 h-16 text-yellow-400/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <rect x="4" y="4" width="16" height="16" rx="4" strokeWidth="2.5" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 15V9m0 0l-3 3m3-3l3 3" />
               </svg>
             </div>
-            <h3 className="text-4xl md:text-[3.5rem] font-black italic tracking-tighter leading-none text-white">
-              {isFormValid ? 'Click to Upload Policy' : 'Enter Your Details First'}
-            </h3>
+            <div className="text-center">
+              <h3 className="text-4xl md:text-[3.5rem] font-black tracking-tighter leading-none text-white">
+                {isFormValid ? 'Click to Upload Policy' : 'Enter Your Details First'}
+              </h3>
+              {isFormValid && <p className="mt-4 text-gray-500 font-bold uppercase tracking-widest text-[10px]">Instant Audit Powered by Boss AI</p>}
+            </div>
           </div>
         )}
       </div>
@@ -112,7 +114,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
           >
             Get A Quote
           </button>
-          <p className="text-gray-700 text-[11px] font-black tracking-widest opacity-80">
+          <p className="text-gray-500 text-[11px] font-black tracking-widest opacity-80 uppercase">
             No policy handy? Fill out to get one
           </p>
         </div>

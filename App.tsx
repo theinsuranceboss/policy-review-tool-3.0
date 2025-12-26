@@ -160,7 +160,7 @@ const App: React.FC = () => {
 
   return (
     <HashRouter>
-      <div className={`min-h-screen bg-transparent text-white selection:bg-yellow-500/30`}>
+      <div className={`min-h-screen bg-transparent text-white selection:bg-yellow-500/30 border-none`}>
         {!isEmbedded && (
           <HeaderWrapper 
             isAdmin={isAdmin} 
@@ -170,7 +170,7 @@ const App: React.FC = () => {
           />
         )}
         
-        <main className={`container mx-auto px-4 max-w-6xl ${isEmbedded ? 'py-0' : 'py-8'}`}>
+        <main className={`container mx-auto px-4 max-w-6xl bg-transparent ${isEmbedded ? 'py-0' : 'py-8'}`}>
           <Routes>
             <Route path="/" element={
               showWizard ? (
@@ -218,13 +218,8 @@ const App: React.FC = () => {
         </main>
 
         {!isEmbedded && (
-          <footer className="py-12 border-t border-white/5 text-center text-gray-500 text-sm bg-transparent">
+          <footer className="py-12 border-none text-center text-gray-500 text-sm bg-transparent">
             <p>© {new Date().getFullYear()} The Insurance Boss Policy Review Tool.</p>
-            <div className="mt-4 flex justify-center gap-6">
-              <a href="https://theinsuranceboss.com" className="hover:text-yellow-400 transition-colors">Main Website</a>
-              <a href="#" className="hover:text-yellow-400 transition-colors">Privacy</a>
-              <a href="#" className="hover:text-yellow-400 transition-colors">Terms</a>
-            </div>
           </footer>
         )}
       </div>
