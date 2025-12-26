@@ -19,21 +19,21 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="max-w-md mx-auto py-24 space-y-8 animate-in fade-in zoom-in-95 duration-500">
-      <div className="text-center space-y-2">
-        <h2 className="text-4xl font-black tracking-tighter uppercase">ADMIN LOGIN</h2>
+    <div className="max-w-md mx-auto py-24 space-y-8 animate-in fade-in zoom-in-95 duration-500 text-center">
+      <div className="space-y-2">
+        <h2 className="text-4xl font-black tracking-tighter">Admin Login</h2>
         <p className="text-gray-500">Enter your credentials to manage policy reviews</p>
       </div>
       
-      <form onSubmit={handleSubmit} className="bg-[#1a1a1a] p-8 rounded-3xl border border-white/5 space-y-6">
+      <form onSubmit={handleSubmit} className="bg-[#1a1a1a] p-8 rounded-3xl border border-white/5 space-y-6 text-left">
         <div className="space-y-2">
-          <label className="text-xs font-bold text-gray-500 uppercase tracking-widest px-1">Admin Password</label>
+          <label className="text-xs font-bold text-gray-500 tracking-widest px-1">Admin Password</label>
           <input 
             type="password" 
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••"
-            className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 focus:outline-none focus:border-yellow-400 transition-colors"
+            className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 focus:outline-none focus:border-yellow-400 transition-all text-white"
           />
           <p className="text-[10px] text-gray-500 px-1">Demo Pass: boss2024</p>
         </div>

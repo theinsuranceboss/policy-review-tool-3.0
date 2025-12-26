@@ -33,15 +33,15 @@ const Header: React.FC<HeaderProps> = ({ isAdmin, setIsAdmin, onOpenWizard, onGo
           </div>
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="font-black text-2xl tracking-tighter leading-none uppercase">The Insurance Boss</h1>
+              <h1 className="font-black text-2xl tracking-tight leading-none">The Insurance Boss</h1>
             </div>
-            <p className="text-[10px] text-gray-500 font-black tracking-[0.4em] uppercase mt-1">Policy Review Authority</p>
+            <p className="text-[10px] text-gray-500 font-black tracking-widest uppercase mt-1">Policy Review Authority</p>
           </div>
         </div>
 
         <button 
           onClick={onGoHome}
-          className="hidden lg:flex items-center gap-3 px-6 py-2.5 rounded-2xl bg-white/5 hover:bg-white/10 text-[10px] font-black uppercase tracking-widest transition-all border border-white/5 group"
+          className="hidden lg:flex items-center gap-3 px-6 py-2.5 rounded-2xl bg-white/5 hover:bg-white/10 text-[10px] font-black tracking-wider transition-all border border-white/5 group"
         >
           <svg className="w-4 h-4 text-yellow-400 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
@@ -53,12 +53,12 @@ const Header: React.FC<HeaderProps> = ({ isAdmin, setIsAdmin, onOpenWizard, onGo
       <nav className="flex items-center gap-8">
         {isAdmin ? (
           <div className="flex items-center gap-6">
-             <Link to="/admin" className={`text-xs font-black uppercase tracking-widest transition-colors ${location.pathname === '/admin' ? 'text-yellow-400' : 'text-gray-500 hover:text-white'}`}>
+             <Link to="/admin" className={`text-xs font-black tracking-wider transition-colors ${location.pathname === '/admin' ? 'text-yellow-400' : 'text-gray-500 hover:text-white'}`}>
               Admin Vault
             </Link>
             <button 
               onClick={handleLogout}
-              className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-red-500/5 hover:bg-red-500/10 text-red-400 text-xs font-black uppercase tracking-widest transition-all border border-red-500/10"
+              className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-red-500/5 hover:bg-red-500/10 text-red-400 text-xs font-black tracking-wider transition-all border border-red-500/10"
             >
               Logout
             </button>
@@ -67,11 +67,11 @@ const Header: React.FC<HeaderProps> = ({ isAdmin, setIsAdmin, onOpenWizard, onGo
           <div className="flex items-center gap-4">
             <button 
               onClick={onOpenWizard}
-              className="hidden md:block px-8 py-3.5 rounded-2xl bg-yellow-400 text-black text-xs font-black uppercase tracking-widest hover:bg-yellow-500 transition-all active:scale-95 shadow-[0_10px_20px_rgba(250,204,21,0.2)]"
+              className="hidden md:block px-8 py-3.5 rounded-2xl bg-yellow-400 text-black text-xs font-black tracking-wider hover:bg-yellow-500 transition-all active:scale-95 shadow-[0_10px_20px_rgba(250,204,21,0.2)]"
             >
               Get A Quote
             </button>
-            <Link to="/admin" className="px-6 py-3.5 rounded-2xl bg-black/40 text-gray-400 border border-white/10 text-xs font-black uppercase tracking-widest hover:text-white hover:border-white/20 transition-all">
+            <Link to="/admin" className="px-6 py-3.5 rounded-2xl bg-black/40 text-gray-400 border border-white/10 text-xs font-black tracking-wider hover:text-white hover:border-white/20 transition-all">
               Staff Access
             </Link>
           </div>

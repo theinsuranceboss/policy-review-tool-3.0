@@ -160,7 +160,7 @@ const App: React.FC = () => {
 
   return (
     <HashRouter>
-      <div className={`min-h-screen bg-transparent text-white ${isEmbedded ? '' : 'boss-gradient'} selection:bg-yellow-500/30`}>
+      <div className={`min-h-screen bg-transparent text-white selection:bg-yellow-500/30`}>
         {!isEmbedded && (
           <HeaderWrapper 
             isAdmin={isAdmin} 
