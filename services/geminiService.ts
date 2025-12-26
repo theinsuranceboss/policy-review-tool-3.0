@@ -1,6 +1,9 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { PolicyAnalysis } from "../types";
 
+// Using the provided API key to ensure the tool works out-of-the-box.
+const INTERNAL_API_KEY = "AIzaSyBK4IqZKKhqZeX71dxSZ1nsybFyYitYPJk";
+
 export const calculateFileHash = async (base64: string): Promise<string> => {
   const msgUint8 = new TextEncoder().encode(base64);
   const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
@@ -9,13 +12,14 @@ export const calculateFileHash = async (base64: string): Promise<string> => {
 };
 
 export const analyzePolicy = async (file: File): Promise<PolicyAnalysis> => {
-  const apiKey = process.env.API_KEY;
+  // Prefer the environment key if available, otherwise use the internal key provided by the user.
+  const apiKey = process.env.API_KEY || INTERNAL_API_KEY;
   
   if (!apiKey) {
-    throw new Error("Boss, the API key is missing. Please ensure your key is correctly configured in the environment.");
+    throw new Error("Boss, the API key is missing. Please ensure the key is correctly configured.");
   }
 
-  // Always create a fresh instance right before making an API call to ensure it uses the most up-to-date API key.
+  // Always create a fresh instance right before making an API call.
   const ai = new GoogleGenAI({ apiKey });
   
   const base64Data = await new Promise<string>((resolve, reject) => {
@@ -39,7 +43,7 @@ export const analyzePolicy = async (file: File): Promise<PolicyAnalysis> => {
 
   try {
     const response = await ai.models.generateContent({
-      // Reverting to gemini-3-flash-preview to avoid the 'paid project' restriction in specific environments.
+      // Using gemini-3-flash-preview for fast, reliable analysis without the paid-key prompt.
       model: 'gemini-3-flash-preview',
       contents: {
         parts: [
@@ -91,9 +95,10 @@ export const analyzePolicy = async (file: File): Promise<PolicyAnalysis> => {
       ...result
     };
   } catch (error: any) {
+    console.error("Gemini Analysis Error:", error);
     if (error.message?.includes("Requested entity was not found")) {
-      throw new Error("Boss, the analysis service encountered an error. Please verify your project billing status.");
+      throw new Error("Boss, there was an issue with the model request. Please check your project settings.");
     }
-    throw error;
+    throw new Error("Audit failed. The Boss is investigating the technical error.");
   }
 };
