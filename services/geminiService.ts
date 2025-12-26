@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { PolicyAnalysis } from "../types";
 
@@ -13,7 +12,7 @@ export const analyzePolicy = async (file: File): Promise<PolicyAnalysis> => {
   const apiKey = process.env.API_KEY;
   
   if (!apiKey) {
-    throw new Error("Boss, your API key is missing. Please click 'Staff Access' and ensure your key is selected in the AI Studio environment.");
+    throw new Error("Boss, the API key is missing. Please ensure your key is correctly configured in the environment.");
   }
 
   // Always create a fresh instance right before making an API call to ensure it uses the most up-to-date API key.
@@ -40,8 +39,8 @@ export const analyzePolicy = async (file: File): Promise<PolicyAnalysis> => {
 
   try {
     const response = await ai.models.generateContent({
-      // Upgrading to gemini-3-pro-preview for advanced extraction and reasoning tasks.
-      model: 'gemini-3-pro-preview',
+      // Reverting to gemini-3-flash-preview to avoid the 'paid project' restriction in specific environments.
+      model: 'gemini-3-flash-preview',
       contents: {
         parts: [
           { inlineData: { data: base64Data, mimeType: 'application/pdf' } },
@@ -93,7 +92,7 @@ export const analyzePolicy = async (file: File): Promise<PolicyAnalysis> => {
     };
   } catch (error: any) {
     if (error.message?.includes("Requested entity was not found")) {
-      throw new Error("Boss, the model requested wasn't found. This usually means the API key needs a quick refresh in 'Staff Access'.");
+      throw new Error("Boss, the analysis service encountered an error. Please verify your project billing status.");
     }
     throw error;
   }

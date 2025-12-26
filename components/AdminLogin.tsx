@@ -1,8 +1,4 @@
-
 import React, { useState } from 'react';
-
-// Removed redundant 'declare global' block that conflicted with environment-provided types.
-// We access aistudio properties via type casting to ensure compatibility with built-in global types.
 
 interface AdminLoginProps {
   onLogin: () => void;
@@ -19,16 +15,6 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
       onLogin();
     } else {
       setError('Invalid Admin Credentials.');
-    }
-  };
-
-  const handleActivateKey = async () => {
-    // Accessing aistudio safely through type casting to satisfy global type requirements.
-    const aistudio = (window as any).aistudio;
-    if (aistudio && typeof aistudio.openSelectKey === 'function') {
-      await aistudio.openSelectKey();
-    } else {
-      alert("Activation dialog only available in AI Studio environment.");
     }
   };
 
@@ -51,13 +37,6 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
           />
           <div className="flex justify-between items-center px-1 mt-1">
             <p className="text-[10px] text-gray-600">Demo Pass: boss2024</p>
-            <button 
-              type="button"
-              onClick={handleActivateKey}
-              className="text-[10px] text-yellow-400/50 hover:text-yellow-400 font-bold tracking-widest uppercase transition-colors"
-            >
-              Activate Boss AI
-            </button>
           </div>
         </div>
 
@@ -75,14 +54,6 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
         <p className="text-center text-gray-500 text-sm">
           Protected Area. Authorized Users Only.
         </p>
-        <a 
-          href="https://ai.google.dev/gemini-api/docs/billing" 
-          target="_blank" 
-          rel="noopener noreferrer" 
-          className="text-[10px] text-yellow-400/40 hover:text-yellow-400 transition-colors uppercase font-black tracking-widest"
-        >
-          API Billing Documentation
-        </a>
       </div>
     </div>
   );
