@@ -12,14 +12,12 @@ export const calculateFileHash = async (base64: string): Promise<string> => {
 };
 
 export const analyzePolicy = async (file: File): Promise<PolicyAnalysis> => {
-  // Prefer the environment key if available, otherwise use the internal key provided by the user.
   const apiKey = process.env.API_KEY || INTERNAL_API_KEY;
   
   if (!apiKey) {
     throw new Error("Boss, the API key is missing. Please ensure the key is correctly configured.");
   }
 
-  // Always create a fresh instance right before making an API call.
   const ai = new GoogleGenAI({ apiKey });
   
   const base64Data = await new Promise<string>((resolve, reject) => {
@@ -31,19 +29,20 @@ export const analyzePolicy = async (file: File): Promise<PolicyAnalysis> => {
 
   const fileHash = await calculateFileHash(base64Data);
 
-  const prompt = `You are "The Insurance Boss". Analyze this insurance policy PDF. 
-  Extract the following details as structured data:
-  1. Insured Name & Address
-  2. Policy Number & Dates
-  3. Coverage Limits (as an array of objects)
-  4. 3-5 major Red Flags or gaps
-  5. A summary of the coverage quality.
-  6. A numerical score (0-10) representing the policy strength.
+  const prompt = `You are "The Insurance Boss", a world-class insurance auditor. Analyze this insurance policy PDF. 
+  Perform a deep technical audit and extract the following details as highly structured data:
+  1. Full Insured Legal Name & Primary Service Address.
+  2. Policy Number, FEIN (if available), and Industry/Class code.
+  3. Effective and Expiration Dates.
+  4. All Major Coverage Limits (GL, Work Comp, Auto, etc.)
+  5. 3-5 major Red Flags/Gaps (Hidden exclusions, low limits, missing endorsements).
+  6. A Premium vs Value assessment (Is this a good deal for the coverage?).
+  7. Numerical strength score (0-10).
+  8. Specific industry-specific exclusion audit findings.
   Output MUST be valid JSON.`;
 
   try {
     const response = await ai.models.generateContent({
-      // Using gemini-3-flash-preview for fast, reliable analysis without the paid-key prompt.
       model: 'gemini-3-flash-preview',
       contents: {
         parts: [
@@ -59,6 +58,8 @@ export const analyzePolicy = async (file: File): Promise<PolicyAnalysis> => {
             insuredName: { type: Type.STRING },
             insuredAddress: { type: Type.STRING },
             policyNumber: { type: Type.STRING },
+            fein: { type: Type.STRING },
+            industry: { type: Type.STRING },
             effectiveDate: { type: Type.STRING },
             expirationDate: { type: Type.STRING },
             type: { type: Type.STRING },
@@ -66,7 +67,10 @@ export const analyzePolicy = async (file: File): Promise<PolicyAnalysis> => {
             score: { type: Type.NUMBER },
             summary: { type: Type.STRING },
             coverageAnalysis: { type: Type.STRING },
+            premiumVsValue: { type: Type.STRING },
+            deductibles: { type: Type.STRING },
             foundExclusions: { type: Type.ARRAY, items: { type: Type.STRING } },
+            industryExclusionAudit: { type: Type.STRING },
             strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
             redFlags: { type: Type.ARRAY, items: { type: Type.STRING } },
             recommendations: { type: Type.ARRAY, items: { type: Type.STRING } },
@@ -92,13 +96,11 @@ export const analyzePolicy = async (file: File): Promise<PolicyAnalysis> => {
       filename: file.name,
       uploadDate: new Date().toLocaleString(),
       fileHash,
+      fileData: base64Data, // Save for PDF downloads in admin
       ...result
     };
   } catch (error: any) {
     console.error("Gemini Analysis Error:", error);
-    if (error.message?.includes("Requested entity was not found")) {
-      throw new Error("Boss, there was an issue with the model request. Please check your project settings.");
-    }
     throw new Error("Audit failed. The Boss is investigating the technical error.");
   }
 };
