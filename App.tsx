@@ -19,7 +19,6 @@ const App: React.FC = () => {
   const [allLeads, setAllLeads] = useState<QuoteRequest[]>([]);
   const [currentAnalysis, setCurrentAnalysis] = useState<PolicyAnalysis | null>(null);
   const [showWizard, setShowWizard] = useState(false);
-  const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [isEmbedded, setIsEmbedded] = useState(false);
 
   useEffect(() => {
@@ -40,7 +39,6 @@ const App: React.FC = () => {
         const l = await storage.getLeads();
         setAllPolicies(p);
         setAllLeads(l);
-        setIsDataLoaded(true);
       } catch (err) {
         console.error("Failed to sync with Boss Central Server:", err);
       }
@@ -121,16 +119,6 @@ const App: React.FC = () => {
     setAllPolicies(p);
     setAllLeads(l);
   };
-
-  if (!isDataLoaded) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-transparent">
-        <div className="text-yellow-400 font-black text-2xl animate-pulse tracking-tighter uppercase">
-          Handshaking With Boss Server...
-        </div>
-      </div>
-    );
-  }
 
   return (
     <HashRouter>
