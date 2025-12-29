@@ -7,7 +7,7 @@ export default defineConfig({
   define: {
     // Specifically define process.env.API_KEY to ensure it's replaced during build
     'process.env.API_KEY': JSON.stringify(process.env.API_KEY),
-    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
   },
   build: {
     chunkSizeWarningLimit: 1600,

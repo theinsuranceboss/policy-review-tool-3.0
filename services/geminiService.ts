@@ -14,21 +14,14 @@ export const calculateFileHash = async (base64: string): Promise<string> => {
 
 /**
  * Deep scan of insurance policy using Gemini 3 Pro.
- * Uses process.env.API_KEY exclusively as required.
+ * Adheres to strict platform requirements for API key usage via process.env.API_KEY.
  */
 export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<PolicyAnalysis> => {
-  // Directly using process.env.API_KEY as injected by the build tool
-  const apiKey = process.env.API_KEY;
+  // Use the exact required initialization pattern
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
-  if (!apiKey) {
-    throw new Error("Boss, the API Key is missing. Check Vercel environment variables.");
-  }
-
-  // Check for early abort
   if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
 
-  const ai = new GoogleGenAI({ apiKey });
-  
   const base64Data = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
@@ -61,7 +54,6 @@ export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<P
         ]
       },
       config: {
-        // High quality reasoning for technical audits
         thinkingConfig: { thinkingBudget: 4000 },
         responseMimeType: "application/json",
         responseSchema: {
@@ -75,7 +67,10 @@ export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<P
             effectiveDate: { type: Type.STRING },
             expirationDate: { type: Type.STRING },
             type: { type: Type.STRING },
-            rating: { type: Type.STRING, description: "Good, Needs Improvement, or Poor" },
+            rating: { 
+              type: Type.STRING, 
+              description: "Must be one of: Good, Needs Improvement, Poor, Unable to Analyze" 
+            },
             score: { type: Type.NUMBER },
             summary: { type: Type.STRING },
             coverageAnalysis: { type: Type.STRING },
@@ -97,7 +92,7 @@ export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<P
               }
             }
           },
-          required: ["insuredName", "score", "summary", "redFlags"]
+          required: ["insuredName", "score", "summary", "redFlags", "rating"]
         }
       }
     });
@@ -116,6 +111,6 @@ export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<P
   } catch (error: any) {
     if (error.name === 'AbortError') throw error;
     console.error("Boss, Audit Failed:", error);
-    throw new Error(error.message || "Audit engine failed to respond.");
+    throw error;
   }
 };
