@@ -29,17 +29,16 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
     setProgress(0);
     if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
 
-    const intervalSpeed = isFastTrack ? 20 : 100;
+    const intervalSpeed = isFastTrack ? 15 : 100;
 
     progressIntervalRef.current = window.setInterval(() => {
       setProgress(prev => {
         if (prev >= 98) {
-          if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+          if (progressIntervalRef.current && !isFastTrack) clearInterval(progressIntervalRef.current);
           return 98;
         }
-        // If it's a vault hit, we move fast. Otherwise, standard slow-down curve.
-        const increment = isFastTrack ? 15 : (prev < 50 ? 2 : prev < 80 ? 0.5 : 0.1);
-        return Math.min(prev + increment, 98);
+        const increment = isFastTrack ? 10 : (prev < 50 ? 2 : prev < 80 ? 0.5 : 0.1);
+        return Math.min(prev + increment, 100);
       });
     }, intervalSpeed);
   };
@@ -49,11 +48,11 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
     if (!file) return;
 
     setIsUploading(true);
-    setStatusText('Checking Boss Vault for existing records...');
+    setStatusText('Checking Boss Vault for duplicate records...');
     startProgressSimulation();
 
     try {
-      // 1. Read file as base64 to calculate hash immediately
+      // 1. Convert to base64 for hashing
       const base64Data = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
@@ -61,29 +60,30 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
         reader.readAsDataURL(file);
       });
 
+      // 2. Generate Hash
       const fileHash = await calculateFileHash(base64Data);
       
-      // 2. Search for existing analysis with this hash
+      // 3. Smart Vault Search
       const existingMatch = existingPolicies.find(p => p.fileHash === fileHash);
 
       if (existingMatch) {
-        // VAULT HIT: Fast track the UI and return existing result
-        setStatusText('Policy found in Vault! Retrieving audit records...');
-        startProgressSimulation(true); // Switch to fast progress
+        // MATCH FOUND: Retrieve from Vault
+        setStatusText('MATCH FOUND: Policy identified in Central Vault. Retrieving records...');
+        startProgressSimulation(true); 
         
-        await new Promise(r => setTimeout(r, 800)); // Small pause for UX feel
+        await new Promise(r => setTimeout(r, 1200)); 
         
         if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
         setProgress(100);
         
         setTimeout(() => {
           onAnalysisComplete(existingMatch, { name: userName, email: userEmail });
-        }, 300);
+        }, 500);
         return;
       }
 
-      // 3. NO MATCH: Perform standard AI analysis
-      setStatusText('No matching records. Initializing AI Technical Audit...');
+      // 4. NO MATCH: New Analysis
+      setStatusText('NO PREVIOUS AUDIT: Initializing Deep Neural Scan...');
       const analysis = await analyzePolicy(file);
       
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
@@ -94,9 +94,10 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
       }, 500);
       
     } catch (err: any) {
-      console.error("Audit encounterted a technical issue:", err);
+      console.error("Audit encountered a technical issue:", err);
       setIsUploading(false);
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+      alert("Boss, there was an issue with the audit. Please check your connection or file and try again.");
     }
   };
 
@@ -112,7 +113,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
           <span className="text-yellow-400">Protecting</span> You?
         </h1>
         <p className="text-gray-400 text-lg md:text-2xl font-bold max-w-2xl mx-auto leading-tight opacity-90">
-          Upload your policy for an instant technical audit. Identify traps before they identify you.
+          Upload your policy for an instant technical audit. Identify gaps before they identify you.
         </p>
       </div>
 
@@ -163,13 +164,11 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
 
             <div className="w-full space-y-6">
               <div className="flex justify-between items-end mb-2 px-1">
-                <span className="text-white font-black text-xl tracking-tighter uppercase">Boss Vault Authority</span>
-                <span className="text-yellow-400 font-mono font-bold text-sm">{progress.toFixed(1)}% Completed</span>
+                <span className="text-white font-black text-xl tracking-tighter uppercase">Boss Vault System</span>
+                <span className="text-yellow-400 font-mono font-bold text-sm">{progress.toFixed(1)}%</span>
               </div>
               
-              {/* PROGRESS BAR TRACK */}
               <div className="h-6 w-full bg-white/5 rounded-full p-1.5 border border-white/10 overflow-hidden shadow-inner">
-                {/* PROGRESS FILL */}
                 <div 
                   className="h-full bg-yellow-400 rounded-full transition-all duration-300 relative shadow-[0_0_25px_rgba(250,204,21,0.5)]" 
                   style={{ width: `${progress}%` }}
@@ -186,7 +185,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
                    <div className={`w-1 h-1 rounded-full ${progress > 25 ? 'bg-yellow-400' : 'bg-white/10'}`} />
                    <div className={`w-1 h-1 rounded-full ${progress > 50 ? 'bg-yellow-400' : 'bg-white/10'}`} />
                    <div className={`w-1 h-1 rounded-full ${progress > 75 ? 'bg-yellow-400' : 'bg-white/10'}`} />
-                   <div className={`w-1 h-1 rounded-full ${progress > 90 ? 'bg-yellow-400' : 'bg-white/10'}`} />
+                   <div className={`w-1 h-1 rounded-full ${progress > 95 ? 'bg-yellow-400' : 'bg-white/10'}`} />
                 </div>
               </div>
             </div>
@@ -201,9 +200,9 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
             </div>
             <div className="text-center">
               <h3 className="text-4xl md:text-[3.5rem] font-black tracking-tighter leading-none text-white">
-                {isFormValid ? 'Click to Upload Policy' : 'Enter Your Details First'}
+                {isFormValid ? 'Click to Upload Policy' : 'Enter Details to Audit'}
               </h3>
-              {isFormValid && <p className="mt-4 text-gray-500 font-bold uppercase tracking-widest text-[10px]">Instant Audit Powered by Boss AI</p>}
+              {isFormValid && <p className="mt-4 text-gray-500 font-bold uppercase tracking-widest text-[10px]">Instant Boss Audit System</p>}
             </div>
           </div>
         )}
@@ -219,7 +218,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
             Get A Quote
           </button>
           <p className="text-gray-500 text-[11px] font-black tracking-widest opacity-80 uppercase">
-            No policy handy? Fill out to get one
+            Identify gaps before they identity you.
           </p>
         </div>
       )}

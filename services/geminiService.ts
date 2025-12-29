@@ -1,9 +1,11 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { PolicyAnalysis } from "../types";
 
-// Using the provided API key to ensure the tool works out-of-the-box.
-const INTERNAL_API_KEY = "AIzaSyBK4IqZKKhqZeX71dxSZ1nsybFyYitYPJk";
-
+/**
+ * Calculates a SHA-256 hash of the file content for duplicate detection.
+ * This allows the "Smart Vault" to identify if a policy has already been audited.
+ */
 export const calculateFileHash = async (base64: string): Promise<string> => {
   const msgUint8 = new TextEncoder().encode(base64);
   const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
@@ -11,11 +13,16 @@ export const calculateFileHash = async (base64: string): Promise<string> => {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 };
 
+/**
+ * Deep scan of insurance policy using Gemini 3 Pro.
+ * Strictly uses process.env.API_KEY as per requirements.
+ */
 export const analyzePolicy = async (file: File): Promise<PolicyAnalysis> => {
-  const apiKey = process.env.API_KEY || INTERNAL_API_KEY;
+  // Accessing process.env.API_KEY directly as required.
+  const apiKey = (process.env as any).API_KEY;
   
   if (!apiKey) {
-    throw new Error("Boss, the API key is missing. Please ensure the key is correctly configured.");
+    throw new Error("API Key configuration missing. Ensure API_KEY is set in environment.");
   }
 
   const ai = new GoogleGenAI({ apiKey });
@@ -36,14 +43,14 @@ export const analyzePolicy = async (file: File): Promise<PolicyAnalysis> => {
   3. Effective and Expiration Dates.
   4. All Major Coverage Limits (GL, Work Comp, Auto, etc.)
   5. 3-5 major Red Flags/Gaps (Hidden exclusions, low limits, missing endorsements).
-  6. A Premium vs Value assessment (Is this a good deal for the coverage?).
+  6. A Premium vs Value assessment.
   7. Numerical strength score (0-10).
   8. Specific industry-specific exclusion audit findings.
   Output MUST be valid JSON.`;
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-3-pro-preview',
       contents: {
         parts: [
           { inlineData: { data: base64Data, mimeType: 'application/pdf' } },
@@ -96,11 +103,11 @@ export const analyzePolicy = async (file: File): Promise<PolicyAnalysis> => {
       filename: file.name,
       uploadDate: new Date().toLocaleString(),
       fileHash,
-      fileData: base64Data, // Save for PDF downloads in admin
+      fileData: base64Data,
       ...result
     };
   } catch (error: any) {
     console.error("Gemini Analysis Error:", error);
-    throw new Error("Audit failed. The Boss is investigating the technical error.");
+    throw new Error("Audit failed. Technical error encountered in Boss Neural Engine.");
   }
 };

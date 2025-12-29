@@ -4,13 +4,14 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  define: {
+    // Shimming process.env for standard library compatibility
+    'process.env': process.env
+  },
   build: {
-    // Standard size for modern apps with AI SDKs
     chunkSizeWarningLimit: 1600,
     rollupOptions: {
       output: {
-        // This splits third-party libraries into their own files
-        // ensuring the main application bundle stays small and fast
         manualChunks(id) {
           if (id.includes('node_modules')) {
             return id.toString().split('node_modules/')[1].split('/')[0].toString();
