@@ -14,10 +14,11 @@ export const calculateFileHash = async (base64: string): Promise<string> => {
 
 /**
  * Deep scan of insurance policy using Gemini 3 Pro.
- * Adheres to strict platform requirements for API key usage via process.env.API_KEY.
+ * Adheres to strict requirements for API key usage via process.env.API_KEY.
  */
 export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<PolicyAnalysis> => {
-  // Use the exact required initialization pattern
+  // Use the exact required initialization pattern. 
+  // process.env.API_KEY is replaced at build time by Vite.
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
@@ -54,7 +55,7 @@ export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<P
         ]
       },
       config: {
-        thinkingConfig: { thinkingBudget: 4000 },
+        thinkingConfig: { thinkingBudget: 16000 },
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
