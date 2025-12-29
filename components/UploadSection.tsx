@@ -12,18 +12,27 @@ interface UploadSectionProps {
 const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, existingPolicies, onOpenWizard }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [statusText, setStatusText] = useState('Initializing Boss Neural Engine...');
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const progressIntervalRef = useRef<number | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Cleanup interval on unmount
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
     };
   }, []);
+
+  const handleStop = () => {
+    if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    setIsUploading(false);
+    setProgress(0);
+  };
 
   const startProgressSimulation = (isFastTrack: boolean = false) => {
     setProgress(0);
@@ -48,11 +57,10 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
     if (!file) return;
 
     setIsUploading(true);
-    setStatusText('Checking Boss Vault for duplicate records...');
     startProgressSimulation();
+    abortControllerRef.current = new AbortController();
 
     try {
-      // 1. Convert to base64 for hashing
       const base64Data = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
@@ -60,44 +68,37 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
         reader.readAsDataURL(file);
       });
 
-      // 2. Generate Hash
       const fileHash = await calculateFileHash(base64Data);
-      
-      // 3. Smart Vault Search
       const existingMatch = existingPolicies.find(p => p.fileHash === fileHash);
 
       if (existingMatch) {
-        // MATCH FOUND: Retrieve from Vault
-        setStatusText('MATCH FOUND: Policy identified in Central Vault. Retrieving records...');
         startProgressSimulation(true); 
-        
         await new Promise(r => setTimeout(r, 1200)); 
-        
         if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
         setProgress(100);
-        
         setTimeout(() => {
-          onAnalysisComplete(existingMatch, { name: userName, email: userEmail });
+          if (isUploading) onAnalysisComplete(existingMatch, { name: userName, email: userEmail });
         }, 500);
         return;
       }
 
-      // 4. NO MATCH: New Analysis
-      setStatusText('NO PREVIOUS AUDIT: Initializing Deep Neural Scan...');
       const analysis = await analyzePolicy(file);
       
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       setProgress(100);
       
       setTimeout(() => {
-        onAnalysisComplete(analysis, { name: userName, email: userEmail });
+        if (isUploading) onAnalysisComplete(analysis, { name: userName, email: userEmail });
       }, 500);
       
     } catch (err: any) {
+      if (err.name === 'AbortError') {
+        console.log('Audit stopped by user.');
+        return;
+      }
       console.error("Audit encountered a technical issue:", err);
       setIsUploading(false);
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-      alert("Boss, there was an issue with the audit. Please check your connection or file and try again.");
     }
   };
 
@@ -154,40 +155,39 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
 
         {isUploading ? (
           <div className="w-full max-w-xl space-y-12 flex flex-col items-center">
-            <div className="relative w-24 h-24 mb-4">
-              <div className="absolute inset-0 border-[6px] border-yellow-400/10 rounded-full" />
-              <div className="absolute inset-0 border-[6px] border-yellow-400 border-t-transparent rounded-full animate-spin" />
+            
+            {/* LARGE PERCENTAGE CIRCLE */}
+            <div className="relative w-32 h-32 mb-4">
+              <div className="absolute inset-0 border-[8px] border-yellow-400/10 rounded-full" />
+              <div className="absolute inset-0 border-[8px] border-yellow-400 border-t-transparent rounded-full animate-spin" />
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-yellow-400 font-black text-lg">{Math.round(progress)}%</span>
+                <span className="text-yellow-400 font-black text-2xl">{Math.round(progress)}%</span>
               </div>
             </div>
 
-            <div className="w-full space-y-6">
-              <div className="flex justify-between items-end mb-2 px-1">
-                <span className="text-white font-black text-xl tracking-tighter uppercase">Boss Vault System</span>
-                <span className="text-yellow-400 font-mono font-bold text-sm">{progress.toFixed(1)}%</span>
-              </div>
-              
-              <div className="h-6 w-full bg-white/5 rounded-full p-1.5 border border-white/10 overflow-hidden shadow-inner">
-                <div 
-                  className="h-full bg-yellow-400 rounded-full transition-all duration-300 relative shadow-[0_0_25px_rgba(250,204,21,0.5)]" 
-                  style={{ width: `${progress}%` }}
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-[shimmer_2s_infinite]" />
+            <div className="w-full space-y-10">
+              {/* PROGRESS BAR TRACK */}
+              <div className="space-y-3">
+                <div className="flex justify-end pr-2">
+                   <span className="text-yellow-400 font-black text-xs tracking-widest">{progress.toFixed(1)}%</span>
+                </div>
+                <div className="h-4 w-full bg-white/5 rounded-full p-1 border border-white/10 overflow-hidden shadow-inner">
+                  <div 
+                    className="h-full bg-yellow-400 rounded-full transition-all duration-300 relative shadow-[0_0_25px_rgba(250,204,21,0.5)]" 
+                    style={{ width: `${progress}%` }}
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-[shimmer_2s_infinite]" />
+                  </div>
                 </div>
               </div>
 
-              <div className="flex flex-col gap-2">
-                <p className="text-gray-400 font-bold uppercase tracking-widest text-[10px] animate-pulse">
-                  {statusText}
-                </p>
-                <div className="flex justify-center gap-1">
-                   <div className={`w-1 h-1 rounded-full ${progress > 25 ? 'bg-yellow-400' : 'bg-white/10'}`} />
-                   <div className={`w-1 h-1 rounded-full ${progress > 50 ? 'bg-yellow-400' : 'bg-white/10'}`} />
-                   <div className={`w-1 h-1 rounded-full ${progress > 75 ? 'bg-yellow-400' : 'bg-white/10'}`} />
-                   <div className={`w-1 h-1 rounded-full ${progress > 95 ? 'bg-yellow-400' : 'bg-white/10'}`} />
-                </div>
-              </div>
+              {/* STOP BUTTON */}
+              <button 
+                onClick={(e) => { e.stopPropagation(); handleStop(); }}
+                className="px-10 py-4 bg-yellow-400 text-black font-black text-[11px] tracking-widest uppercase rounded-2xl hover:bg-yellow-500 transition-all active:scale-95 shadow-[0_10px_20px_rgba(250,204,21,0.2)]"
+              >
+                Stop Audit
+              </button>
             </div>
           </div>
         ) : (
@@ -218,7 +218,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
             Get A Quote
           </button>
           <p className="text-gray-500 text-[11px] font-black tracking-widest opacity-80 uppercase">
-            Identify gaps before they identity you.
+            Identify gaps before they identify you.
           </p>
         </div>
       )}
