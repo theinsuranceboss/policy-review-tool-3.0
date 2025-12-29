@@ -51,9 +51,18 @@ const App: React.FC = () => {
   }, []);
 
   const handleNewAnalysis = async (analysis: PolicyAnalysis, userDetails?: { name: string; email: string }) => {
-    await storage.savePolicy(analysis);
-    setAllPolicies(prev => [analysis, ...prev]);
-    await bossServer.upstream('policy', analysis);
+    // 1. Update UI state immediately to prevent "freeze" feeling
+    setCurrentAnalysis(analysis);
+    setShowWizard(false);
+
+    // 2. Perform persistence and syncing in background
+    storage.savePolicy(analysis).then(() => {
+      setAllPolicies(prev => {
+        const exists = prev.some(p => p.id === analysis.id);
+        return exists ? prev : [analysis, ...prev];
+      });
+      bossServer.upstream('policy', analysis);
+    });
 
     const autoLead: QuoteRequest = {
       id: `auto-${analysis.id}`,
@@ -77,17 +86,18 @@ const App: React.FC = () => {
       sourcePolicyId: analysis.id
     };
 
-    await handleNewLead(autoLead);
-    setCurrentAnalysis(analysis);
+    handleNewLead(autoLead);
   };
 
   const handleNewLead = async (lead: QuoteRequest) => {
-    await storage.saveLead(lead);
     setAllLeads(prev => {
       const filtered = prev.filter(l => l.id !== lead.id);
       return [lead, ...filtered];
     });
-    await bossServer.upstream('lead', lead);
+    
+    // Background persistence
+    storage.saveLead(lead);
+    bossServer.upstream('lead', lead);
   };
 
   const handleDeletePolicy = async (id: string) => {

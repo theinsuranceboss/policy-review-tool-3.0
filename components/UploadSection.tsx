@@ -37,15 +37,15 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
     setProgress(0);
     if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
 
-    const intervalSpeed = isFastTrack ? 15 : 100;
+    const intervalSpeed = isFastTrack ? 10 : 100;
 
     progressIntervalRef.current = window.setInterval(() => {
       setProgress(prev => {
         if (prev >= 98) {
-          if (progressIntervalRef.current && !isFastTrack) clearInterval(progressIntervalRef.current);
-          return 98;
+          if (!isFastTrack) return 98;
+          return 100;
         }
-        const increment = isFastTrack ? 10 : (prev < 50 ? 2 : prev < 80 ? 0.5 : 0.1);
+        const increment = isFastTrack ? 15 : (prev < 40 ? 3 : prev < 70 ? 0.8 : 0.2);
         return Math.min(prev + increment, 100);
       });
     }, intervalSpeed);
@@ -72,23 +72,29 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
 
       if (existingMatch) {
         startProgressSimulation(true); 
-        await new Promise(r => setTimeout(r, 1200)); 
+        await new Promise(r => setTimeout(r, 800)); 
         if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
         setProgress(100);
         setTimeout(() => {
-          if (isUploading) onAnalysisComplete(existingMatch, { name: userName, email: userEmail });
-        }, 500);
+          onAnalysisComplete(existingMatch, { name: userName, email: userEmail });
+          setIsUploading(false);
+          setProgress(0);
+        }, 300);
         return;
       }
 
-      // Pass the abort signal to the AI analysis
+      // Perform AI Analysis
       const analysis = await analyzePolicy(file, abortControllerRef.current.signal);
       
+      // Cleanup progress simulation on success
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       setProgress(100);
       
+      // Finalizing transition
       setTimeout(() => {
-        if (isUploading) onAnalysisComplete(analysis, { name: userName, email: userEmail });
+        onAnalysisComplete(analysis, { name: userName, email: userEmail });
+        setIsUploading(false);
+        setProgress(0);
       }, 500);
       
     } catch (err: any) {
@@ -98,8 +104,11 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
       }
       console.error("Technical Audit Failure:", err);
       setIsUploading(false);
+      setProgress(0);
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       alert(`Audit Failure: ${err.message || "Unknown error occurred on Boss Central Engine."}`);
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -155,7 +164,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
         <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="application/pdf" />
 
         {isUploading ? (
-          <div className="w-full max-w-xl space-y-12 flex flex-col items-center">
+          <div className="w-full max-w-xl space-y-12 flex flex-col items-center animate-in fade-in zoom-in-95">
             
             {/* LARGE PERCENTAGE CIRCLE */}
             <div className="relative w-32 h-32 mb-4">
