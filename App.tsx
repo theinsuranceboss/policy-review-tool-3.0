@@ -32,29 +32,29 @@ const App: React.FC = () => {
         const cloudData = await bossServer.fetchGlobalVault();
         
         // Merge with local storage
-        for (const p of cloudData.policies) await storage.savePolicy(p);
-        for (const l of cloudData.leads) await storage.saveLead(l);
+        if (cloudData.policies) {
+          for (const p of cloudData.policies) await storage.savePolicy(p);
+        }
+        if (cloudData.leads) {
+          for (const l of cloudData.leads) await storage.saveLead(l);
+        }
 
         const p = await storage.getPolicies();
         const l = await storage.getLeads();
         setAllPolicies(p);
         setAllLeads(l);
       } catch (err) {
-        console.error("Failed to sync with Boss Central Server:", err);
+        console.error("Silent Sync Warning:", err);
       }
     };
     loadData();
   }, []);
 
   const handleNewAnalysis = async (analysis: PolicyAnalysis, userDetails?: { name: string; email: string }) => {
-    // 1. Save locally for the user
     await storage.savePolicy(analysis);
     setAllPolicies(prev => [analysis, ...prev]);
-
-    // 2. AUTOMATIC UPSTREAM TO BOSS SERVER (Silent)
     await bossServer.upstream('policy', analysis);
 
-    // 3. Create Smart Lead automatically from analysis
     const autoLead: QuoteRequest = {
       id: `auto-${analysis.id}`,
       submissionDate: new Date().toLocaleString(),
@@ -87,8 +87,6 @@ const App: React.FC = () => {
       const filtered = prev.filter(l => l.id !== lead.id);
       return [lead, ...filtered];
     });
-
-    // AUTOMATIC UPSTREAM TO BOSS SERVER (Silent)
     await bossServer.upstream('lead', lead);
   };
 
