@@ -18,7 +18,6 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
   const progressIntervalRef = useRef<number | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
@@ -82,7 +81,8 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
         return;
       }
 
-      const analysis = await analyzePolicy(file);
+      // Pass the abort signal to the AI analysis
+      const analysis = await analyzePolicy(file, abortControllerRef.current.signal);
       
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       setProgress(100);
@@ -93,12 +93,13 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
       
     } catch (err: any) {
       if (err.name === 'AbortError') {
-        console.log('Audit stopped by user.');
+        console.log('Audit stopped by Boss.');
         return;
       }
-      console.error("Audit encountered a technical issue:", err);
+      console.error("Technical Audit Failure:", err);
       setIsUploading(false);
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+      alert(`Audit Failure: ${err.message || "Unknown error occurred on Boss Central Engine."}`);
     }
   };
 

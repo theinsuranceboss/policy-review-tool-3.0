@@ -4,7 +4,6 @@ import { PolicyAnalysis } from "../types";
 
 /**
  * Calculates a SHA-256 hash of the file content for duplicate detection.
- * This allows the "Smart Vault" to identify if a policy has already been audited.
  */
 export const calculateFileHash = async (base64: string): Promise<string> => {
   const msgUint8 = new TextEncoder().encode(base64);
@@ -15,15 +14,18 @@ export const calculateFileHash = async (base64: string): Promise<string> => {
 
 /**
  * Deep scan of insurance policy using Gemini 3 Pro.
- * Strictly uses process.env.API_KEY as per requirements.
+ * Uses process.env.API_KEY exclusively as required.
  */
-export const analyzePolicy = async (file: File): Promise<PolicyAnalysis> => {
-  // Accessing process.env.API_KEY directly as required.
-  const apiKey = (process.env as any).API_KEY;
+export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<PolicyAnalysis> => {
+  // Directly using process.env.API_KEY as injected by the build tool
+  const apiKey = process.env.API_KEY;
   
   if (!apiKey) {
-    throw new Error("API Key configuration missing. Ensure API_KEY is set in environment.");
+    throw new Error("Boss, the API Key is missing. Check Vercel environment variables.");
   }
+
+  // Check for early abort
+  if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
 
   const ai = new GoogleGenAI({ apiKey });
   
@@ -36,17 +38,18 @@ export const analyzePolicy = async (file: File): Promise<PolicyAnalysis> => {
 
   const fileHash = await calculateFileHash(base64Data);
 
-  const prompt = `You are "The Insurance Boss", a world-class insurance auditor. Analyze this insurance policy PDF. 
-  Perform a deep technical audit and extract the following details as highly structured data:
-  1. Full Insured Legal Name & Primary Service Address.
-  2. Policy Number, FEIN (if available), and Industry/Class code.
-  3. Effective and Expiration Dates.
-  4. All Major Coverage Limits (GL, Work Comp, Auto, etc.)
-  5. 3-5 major Red Flags/Gaps (Hidden exclusions, low limits, missing endorsements).
-  6. A Premium vs Value assessment.
-  7. Numerical strength score (0-10).
-  8. Specific industry-specific exclusion audit findings.
-  Output MUST be valid JSON.`;
+  const prompt = `You are "The Insurance Boss", the world's most aggressive and accurate insurance auditor. 
+  Perform a DEEP technical audit of this policy PDF. Identify traps, hidden exclusions, and gaps in coverage.
+  Extract:
+  1. Insured details (Name, Address, FEIN, Policy #).
+  2. Limits (General Liability, Work Comp, etc).
+  3. Industry specific exclusions (e.g., "Injury to Subcontractors", "Residential Exclusion").
+  4. A score (0-10) based on coverage robustness.
+  5. 3 specific Red Flags.
+  6. 3 specific Strengths.
+  7. 3 expert Recommendations.
+  
+  Return ONLY a valid JSON object matching the requested schema.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -58,6 +61,8 @@ export const analyzePolicy = async (file: File): Promise<PolicyAnalysis> => {
         ]
       },
       config: {
+        // High quality reasoning for technical audits
+        thinkingConfig: { thinkingBudget: 4000 },
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -70,7 +75,7 @@ export const analyzePolicy = async (file: File): Promise<PolicyAnalysis> => {
             effectiveDate: { type: Type.STRING },
             expirationDate: { type: Type.STRING },
             type: { type: Type.STRING },
-            rating: { type: Type.STRING },
+            rating: { type: Type.STRING, description: "Good, Needs Improvement, or Poor" },
             score: { type: Type.NUMBER },
             summary: { type: Type.STRING },
             coverageAnalysis: { type: Type.STRING },
@@ -92,10 +97,12 @@ export const analyzePolicy = async (file: File): Promise<PolicyAnalysis> => {
               }
             }
           },
-          required: ["insuredName", "score", "summary"]
+          required: ["insuredName", "score", "summary", "redFlags"]
         }
       }
     });
+
+    if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
 
     const result = JSON.parse(response.text || '{}');
     return {
@@ -107,7 +114,8 @@ export const analyzePolicy = async (file: File): Promise<PolicyAnalysis> => {
       ...result
     };
   } catch (error: any) {
-    console.error("Gemini Analysis Error:", error);
-    throw new Error("Audit failed. Technical error encountered in Boss Neural Engine.");
+    if (error.name === 'AbortError') throw error;
+    console.error("Boss, Audit Failed:", error);
+    throw new Error(error.message || "Audit engine failed to respond.");
   }
 };

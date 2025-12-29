@@ -5,8 +5,9 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   define: {
-    // Shimming process.env for standard library compatibility
-    'process.env': process.env
+    // Specifically define process.env.API_KEY to ensure it's replaced during build
+    'process.env.API_KEY': JSON.stringify(process.env.API_KEY),
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
   },
   build: {
     chunkSizeWarningLimit: 1600,
