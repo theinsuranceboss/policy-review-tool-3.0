@@ -13,8 +13,8 @@ export const calculateFileHash = async (base64: string): Promise<string> => {
 };
 
 /**
- * Deep scan of insurance policy using Gemini 3 Pro.
- * Adheres to strict requirements for API key usage via process.env.API_KEY.
+ * Deep scan of insurance policy using Gemini 3 Flash.
+ * Switched to Flash to avoid Pro quota limitations on free tier keys.
  */
 export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<PolicyAnalysis> => {
   const apiKey = process.env.API_KEY;
@@ -52,7 +52,7 @@ export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<P
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-3-flash-preview',
       contents: {
         parts: [
           { inlineData: { data: base64Data, mimeType: 'application/pdf' } },
@@ -60,7 +60,8 @@ export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<P
         ]
       },
       config: {
-        thinkingConfig: { thinkingBudget: 16000 },
+        // Reduced thinking budget for Flash to ensure stability on free tier
+        thinkingConfig: { thinkingBudget: 2000 },
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
