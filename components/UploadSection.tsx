@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { analyzePolicy } from '../services/geminiService';
+import { analyzePolicy, calculateFileHash } from '../services/geminiService';
 import { PolicyAnalysis } from '../types';
 
 interface UploadSectionProps {
@@ -12,6 +12,7 @@ interface UploadSectionProps {
 const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, existingPolicies, onOpenWizard }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [statusText, setStatusText] = useState('Initializing Boss Neural Engine...');
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -24,9 +25,11 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
     };
   }, []);
 
-  const startProgressSimulation = () => {
+  const startProgressSimulation = (isFastTrack: boolean = false) => {
     setProgress(0);
     if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+
+    const intervalSpeed = isFastTrack ? 20 : 100;
 
     progressIntervalRef.current = window.setInterval(() => {
       setProgress(prev => {
@@ -34,11 +37,11 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
           if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
           return 98;
         }
-        // Progressively slower as it gets closer to 100
-        const increment = prev < 50 ? 2 : prev < 80 ? 0.5 : 0.1;
+        // If it's a vault hit, we move fast. Otherwise, standard slow-down curve.
+        const increment = isFastTrack ? 15 : (prev < 50 ? 2 : prev < 80 ? 0.5 : 0.1);
         return Math.min(prev + increment, 98);
       });
-    }, 100);
+    }, intervalSpeed);
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -46,16 +49,46 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
     if (!file) return;
 
     setIsUploading(true);
+    setStatusText('Checking Boss Vault for existing records...');
     startProgressSimulation();
 
     try {
+      // 1. Read file as base64 to calculate hash immediately
+      const base64Data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+        reader.onerror = () => reject(new Error("Failed to read file"));
+        reader.readAsDataURL(file);
+      });
+
+      const fileHash = await calculateFileHash(base64Data);
+      
+      // 2. Search for existing analysis with this hash
+      const existingMatch = existingPolicies.find(p => p.fileHash === fileHash);
+
+      if (existingMatch) {
+        // VAULT HIT: Fast track the UI and return existing result
+        setStatusText('Policy found in Vault! Retrieving audit records...');
+        startProgressSimulation(true); // Switch to fast progress
+        
+        await new Promise(r => setTimeout(r, 800)); // Small pause for UX feel
+        
+        if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+        setProgress(100);
+        
+        setTimeout(() => {
+          onAnalysisComplete(existingMatch, { name: userName, email: userEmail });
+        }, 300);
+        return;
+      }
+
+      // 3. NO MATCH: Perform standard AI analysis
+      setStatusText('No matching records. Initializing AI Technical Audit...');
       const analysis = await analyzePolicy(file);
       
-      // Complete the progress before moving on
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       setProgress(100);
       
-      // Small delay to let user see 100%
       setTimeout(() => {
         onAnalysisComplete(analysis, { name: userName, email: userEmail });
       }, 500);
@@ -64,7 +97,6 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
       console.error("Audit encounterted a technical issue:", err);
       setIsUploading(false);
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-      // UI error reporting is suppressed as per previous request
     }
   };
 
@@ -131,7 +163,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
 
             <div className="w-full space-y-6">
               <div className="flex justify-between items-end mb-2 px-1">
-                <span className="text-white font-black text-xl tracking-tighter uppercase">Deep Scan Activity</span>
+                <span className="text-white font-black text-xl tracking-tighter uppercase">Boss Vault Authority</span>
                 <span className="text-yellow-400 font-mono font-bold text-sm">{progress.toFixed(1)}% Completed</span>
               </div>
               
@@ -148,10 +180,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
 
               <div className="flex flex-col gap-2">
                 <p className="text-gray-400 font-bold uppercase tracking-widest text-[10px] animate-pulse">
-                  {progress < 30 ? 'Initializing Boss Neural Engine...' : 
-                   progress < 60 ? 'Analyzing Coverage Endorsements...' : 
-                   progress < 90 ? 'Auditing Hidden Exclusions...' : 
-                   'Compiling Risk Dashboard...'}
+                  {statusText}
                 </p>
                 <div className="flex justify-center gap-1">
                    <div className={`w-1 h-1 rounded-full ${progress > 25 ? 'bg-yellow-400' : 'bg-white/10'}`} />

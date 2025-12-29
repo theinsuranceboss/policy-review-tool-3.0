@@ -1,21 +1,45 @@
 
+import { openDB, IDBPDatabase } from 'idb';
 import { PolicyAnalysis, QuoteRequest } from '../types';
+
+const DB_NAME = 'BossCentralServerDB';
+const STORE_POLICIES = 'server_policies';
+const STORE_LEADS = 'server_leads';
+const DB_VERSION = 1;
 
 /**
  * Boss Central Server Service
- * Handles the "Global Vault" logic. In a production environment, 
- * these methods would call your private REST API (e.g., https://api.theinsuranceboss.com/vault)
+ * Handles the "Global Vault" logic using IndexedDB to avoid localStorage quota limits.
  */
 class BossServerService {
   private isOnline: boolean = true;
   private syncListeners: (() => void)[] = [];
+  private dbPromise: Promise<IDBPDatabase> | null = null;
 
   constructor() {
     // Simulate server heartbeat
-    setInterval(() => {
-      this.isOnline = navigator.onLine;
-      this.notifyListeners();
-    }, 5000);
+    if (typeof window !== 'undefined') {
+      setInterval(() => {
+        this.isOnline = navigator.onLine;
+        this.notifyListeners();
+      }, 5000);
+    }
+  }
+
+  private getDB() {
+    if (!this.dbPromise) {
+      this.dbPromise = openDB(DB_NAME, DB_VERSION, {
+        upgrade(db) {
+          if (!db.objectStoreNames.contains(STORE_POLICIES)) {
+            db.createObjectStore(STORE_POLICIES, { keyPath: 'id' });
+          }
+          if (!db.objectStoreNames.contains(STORE_LEADS)) {
+            db.createObjectStore(STORE_LEADS, { keyPath: 'id' });
+          }
+        },
+      });
+    }
+    return this.dbPromise;
   }
 
   private notifyListeners() {
@@ -31,7 +55,7 @@ class BossServerService {
   }
 
   /**
-   * Pushes a new submission to the global authority
+   * Pushes a new submission to the global authority (Simulated via IDB)
    */
   async upstream(type: 'policy' | 'lead', data: any) {
     console.log(`[Boss Server] Up-streaming ${type}:`, data.id);
@@ -39,17 +63,15 @@ class BossServerService {
     // Simulate network latency
     await new Promise(resolve => setTimeout(resolve, 800));
     
-    // In a real server setup:
-    // await fetch('/api/vault/push', { method: 'POST', body: JSON.stringify({ type, data }) });
-    
-    // For now, we utilize the local storage as a "Server Mirror" 
-    // to ensure the Boss can see data across sessions on the same domain.
-    const serverKey = `boss_central_vault_${type}s`;
-    const existing = JSON.parse(localStorage.getItem(serverKey) || '[]');
-    const updated = [data, ...existing.filter((item: any) => item.id !== data.id)];
-    localStorage.setItem(serverKey, JSON.stringify(updated));
-    
-    return { success: true, timestamp: new Date().toISOString() };
+    try {
+      const db = await this.getDB();
+      const storeName = type === 'policy' ? STORE_POLICIES : STORE_LEADS;
+      await db.put(storeName, data);
+      return { success: true, timestamp: new Date().toISOString() };
+    } catch (err) {
+      console.error(`[Boss Server] Critical Upstream Failure:`, err);
+      return { success: false, error: err };
+    }
   }
 
   /**
@@ -59,10 +81,24 @@ class BossServerService {
     console.log('[Boss Server] Refreshing Global Vault Data...');
     await new Promise(resolve => setTimeout(resolve, 500));
     
-    const policies = JSON.parse(localStorage.getItem('boss_central_vault_policys') || '[]');
-    const leads = JSON.parse(localStorage.getItem('boss_central_vault_leads') || '[]');
-    
-    return { policies, leads };
+    try {
+      const db = await this.getDB();
+      const policies = await db.getAll(STORE_POLICIES);
+      const leads = await db.getAll(STORE_LEADS);
+      
+      // Sort by date descending (assuming standard string format from types)
+      const sortedPolicies = policies.sort((a, b) => 
+        new Date(b.uploadDate || 0).getTime() - new Date(a.uploadDate || 0).getTime()
+      );
+      const sortedLeads = leads.sort((a, b) => 
+        new Date(b.submissionDate || 0).getTime() - new Date(a.submissionDate || 0).getTime()
+      );
+
+      return { policies: sortedPolicies, leads: sortedLeads };
+    } catch (err) {
+      console.error(`[Boss Server] Vault Retrieval Failed:`, err);
+      return { policies: [], leads: [] };
+    }
   }
 }
 
