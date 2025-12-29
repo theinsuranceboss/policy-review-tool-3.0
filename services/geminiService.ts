@@ -14,16 +14,16 @@ export const calculateFileHash = async (base64: string): Promise<string> => {
 
 /**
  * Deep scan of insurance policy using Gemini 3 Flash.
- * Switched to Flash to avoid Pro quota limitations on free tier keys.
+ * Optimized for speed and high reliability on standard API keys.
  */
 export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<PolicyAnalysis> => {
   const apiKey = process.env.API_KEY;
   
   if (!apiKey || apiKey === 'undefined' || apiKey === '') {
-    throw new Error("Audit Failure: The Insurance Boss API key is not configured in the build environment.");
+    throw new Error("Audit Failure: The Insurance Boss API key is not configured. Please check your deployment settings.");
   }
 
-  // Use the exact required initialization pattern. 
+  // Use the exact required initialization pattern
   const ai = new GoogleGenAI({ apiKey: apiKey });
   
   if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
@@ -60,7 +60,6 @@ export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<P
         ]
       },
       config: {
-        // Reduced thinking budget for Flash to ensure stability on free tier
         thinkingConfig: { thinkingBudget: 2000 },
         responseMimeType: "application/json",
         responseSchema: {
