@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react()],
   define: {
     // Injecting the provided API Key directly into the build tokens
-    'process.env.API_KEY': JSON.stringify('AIzaSyBimo5pqvE3siZvgdB-v-QShQqqq7Em-F0'),
+    'process.env.API_KEY': JSON.stringify('AIzaSyDdBGAsQi95CtHYTZGoCbnlf3aG8WpN0Wo'),
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
   },
   build: {

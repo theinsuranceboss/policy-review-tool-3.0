@@ -17,9 +17,14 @@ export const calculateFileHash = async (base64: string): Promise<string> => {
  * Adheres to strict requirements for API key usage via process.env.API_KEY.
  */
 export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<PolicyAnalysis> => {
+  const apiKey = process.env.API_KEY;
+  
+  if (!apiKey || apiKey === 'undefined' || apiKey === '') {
+    throw new Error("Audit Failure: The Insurance Boss API key is not configured in the build environment.");
+  }
+
   // Use the exact required initialization pattern. 
-  // process.env.API_KEY is replaced at build time by Vite.
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: apiKey });
   
   if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
 
