@@ -61,7 +61,7 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ onRegister }) => {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="boss@company.com"
+              placeholder="Enter email"
               className="w-full bg-white/5 border border-white/10 rounded-2xl px-8 py-6 text-lg font-bold focus:outline-none focus:border-yellow-400/50 transition-all text-white placeholder:text-gray-700 shadow-inner"
             />
           </div>

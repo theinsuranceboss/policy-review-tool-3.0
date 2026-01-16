@@ -143,7 +143,8 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
       setIsUploading(false);
       setProgress(0);
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-      alert(`Audit Failure: ${err.message || "Unknown error occurred on Boss Central Engine."}`);
+      // Removed redundant "Audit Failure:" prefix from alert
+      alert(err.message || "Unknown error occurred on Boss Central Engine.");
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
@@ -188,7 +189,13 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
     }, 2000);
   };
 
-  const isFormValid = userName.trim() !== '' && userEmail.trim().includes('@');
+  // Strictly allow only gmail.com and hotmail.com as requested
+  const isValidEmail = (email: string) => {
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@(gmail|hotmail)\.com$/i;
+    return emailRegex.test(email.trim());
+  };
+
+  const isFormValid = userName.trim().length > 1 && isValidEmail(userEmail);
   const isLimitReached = !isPremium && uploadCount >= FREE_LIMIT;
 
   return (
@@ -291,9 +298,12 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
                 type="email"
                 value={userEmail}
                 onChange={(e) => setUserEmail(e.target.value)}
-                placeholder="boss@example.com"
+                placeholder="Enter email (@gmail.com or @hotmail.com)"
                 className="w-full bg-[#121212] border border-white/10 rounded-xl px-6 py-4 text-sm font-medium focus:outline-none focus:border-yellow-400/30 transition-all text-white placeholder:text-gray-700"
               />
+              {!isValidEmail(userEmail) && userEmail.length > 0 && (
+                <p className="text-red-500/80 text-[9px] font-bold uppercase tracking-widest ml-1 mt-1">Strictly @gmail.com or @hotmail.com required</p>
+              )}
             </div>
           </div>
 
@@ -348,7 +358,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
                 </div>
                 <div className="text-center">
                   <h3 className="text-5xl md:text-7xl font-black tracking-tighter leading-none text-white">
-                    {isLimitReached ? 'Limit reached' : isFormValid ? 'Click to upload policy' : 'Enter details to audit'}
+                    {isLimitReached ? 'Limit reached' : isFormValid ? 'Click to upload policy' : 'Valid Name & Gmail/Hotmail required'}
                   </h3>
                 </div>
               </div>
@@ -418,7 +428,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
                         value={reqEmail}
                         onChange={(e) => setReqEmail(e.target.value)}
                         className="w-full bg-black border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-yellow-400 outline-none text-white"
-                        placeholder="john@example.com"
+                        placeholder="Enter email"
                       />
                     </div>
                     <div className="pt-2 flex flex-col gap-3">
