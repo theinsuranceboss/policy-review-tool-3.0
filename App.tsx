@@ -7,16 +7,55 @@ import AnalysisResult from './components/AnalysisResult';
 import AdminDashboard from './components/AdminDashboard';
 import AdminLogin from './components/AdminLogin';
 import WizardForm from './components/WizardForm';
-import { PolicyAnalysis, QuoteRequest } from './types';
+import { PolicyAnalysis, QuoteRequest, PremiumRequest } from './types';
 import { storage } from './services/storage';
 import { bossServer } from './services/serverService';
 
 const { HashRouter, Routes, Route } = ReactRouterDOM;
 
+// Wrapper to handle main app view states
+const MainView: React.FC<{
+  showWizard: boolean,
+  setShowWizard: (v: boolean) => void,
+  allPolicies: PolicyAnalysis[],
+  currentAnalysis: PolicyAnalysis | null,
+  handleNewAnalysis: (a: PolicyAnalysis, details: {name: string, email: string}) => void,
+  handleNewLead: (l: QuoteRequest) => void,
+  handleNewPremiumRequest: (r: PremiumRequest) => void,
+  setCurrentAnalysis: (a: PolicyAnalysis | null) => void,
+}> = ({ showWizard, setShowWizard, allPolicies, currentAnalysis, handleNewAnalysis, handleNewLead, handleNewPremiumRequest, setCurrentAnalysis }) => {
+  
+  if (showWizard) {
+    return <WizardForm onSubmit={handleNewLead} onCancel={() => setShowWizard(false)} />;
+  }
+
+  if (currentAnalysis) {
+    return (
+      <AnalysisResult 
+        analysis={currentAnalysis} 
+        onReset={() => setCurrentAnalysis(null)} 
+        onOpenWizard={() => setShowWizard(true)}
+      />
+    );
+  }
+
+  return (
+    <UploadSection 
+      onAnalysisComplete={handleNewAnalysis} 
+      existingPolicies={allPolicies}
+      onOpenWizard={() => setShowWizard(true)}
+      onPremiumRequest={handleNewPremiumRequest}
+    />
+  );
+};
+
 const App: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [allPolicies, setAllPolicies] = useState<PolicyAnalysis[]>([]);
   const [allLeads, setAllLeads] = useState<QuoteRequest[]>([]);
+  const [recycledLeads, setRecycledLeads] = useState<QuoteRequest[]>([]);
+  const [recycledPolicies, setRecycledPolicies] = useState<PolicyAnalysis[]>([]);
+  const [premiumRequests, setPremiumRequests] = useState<PremiumRequest[]>([]);
   const [currentAnalysis, setCurrentAnalysis] = useState<PolicyAnalysis | null>(null);
   const [showWizard, setShowWizard] = useState(false);
   const [isEmbedded, setIsEmbedded] = useState(false);
@@ -28,10 +67,7 @@ const App: React.FC = () => {
     
     const loadData = async () => {
       try {
-        // Sync with Central Vault on load
         const cloudData = await bossServer.fetchGlobalVault();
-        
-        // Merge with local storage
         if (cloudData.policies) {
           for (const p of cloudData.policies) await storage.savePolicy(p);
         }
@@ -41,8 +77,14 @@ const App: React.FC = () => {
 
         const p = await storage.getPolicies();
         const l = await storage.getLeads();
+        const rl = await storage.getRecycledLeads();
+        const rp = await storage.getRecycledPolicies();
+        const pr = await storage.getPremiumRequests();
         setAllPolicies(p);
         setAllLeads(l);
+        setRecycledLeads(rl);
+        setRecycledPolicies(rp);
+        setPremiumRequests(pr);
       } catch (err) {
         console.error("Silent Sync Warning:", err);
       }
@@ -50,12 +92,16 @@ const App: React.FC = () => {
     loadData();
   }, []);
 
-  const handleNewAnalysis = async (analysis: PolicyAnalysis, userDetails?: { name: string; email: string }) => {
-    // 1. Update UI state immediately to prevent "freeze" feeling
+  const handleGoHome = () => {
+    window.location.hash = '#/';
+    setCurrentAnalysis(null);
+    setShowWizard(false);
+  };
+
+  const handleNewAnalysis = async (analysis: PolicyAnalysis, details: {name: string, email: string}) => {
     setCurrentAnalysis(analysis);
     setShowWizard(false);
 
-    // 2. Perform persistence and syncing in background
     storage.savePolicy(analysis).then(() => {
       setAllPolicies(prev => {
         const exists = prev.some(p => p.id === analysis.id);
@@ -68,7 +114,7 @@ const App: React.FC = () => {
       id: `auto-${analysis.id}`,
       submissionDate: new Date().toLocaleString(),
       status: 'New',
-      businessName: analysis.insuredName,
+      businessName: analysis.insuredName || details.name,
       fein: analysis.fein || 'EXTRACTED',
       yearsInBusiness: 'EXTRACTED',
       address1: analysis.insuredAddress || '',
@@ -80,8 +126,8 @@ const App: React.FC = () => {
       hasActiveCoverage: true,
       knowsPremium: false,
       hasDeclPage: true,
-      contactName: userDetails?.name || analysis.insuredName || 'Insured',
-      contactEmail: userDetails?.email || analysis.contactEmail || '',
+      contactName: details.name || analysis.insuredName || 'Insured',
+      contactEmail: details.email || analysis.contactEmail || '',
       contactPhone: analysis.contactPhone || '',
       sourcePolicyId: analysis.id
     };
@@ -94,20 +140,64 @@ const App: React.FC = () => {
       const filtered = prev.filter(l => l.id !== lead.id);
       return [lead, ...filtered];
     });
-    
-    // Background persistence
     storage.saveLead(lead);
     bossServer.upstream('lead', lead);
   };
 
+  const handleNewPremiumRequest = async (request: PremiumRequest) => {
+    await storage.savePremiumRequest(request);
+    setPremiumRequests(prev => [request, ...prev]);
+  };
+
   const handleDeletePolicy = async (id: string) => {
-    await storage.deletePolicy(id);
-    setAllPolicies(prev => prev.filter(p => p.id !== id));
+    const policyToRecycle = allPolicies.find(p => p.id === id);
+    if (policyToRecycle) {
+      await storage.moveToRecyclePolicy(policyToRecycle);
+      setAllPolicies(prev => prev.filter(p => p.id !== id));
+      setRecycledPolicies(prev => [policyToRecycle, ...prev]);
+    }
+  };
+
+  const handleRestorePolicy = async (id: string) => {
+    const policyToRestore = recycledPolicies.find(p => p.id === id);
+    if (policyToRestore) {
+      await storage.restoreFromRecyclePolicy(policyToRestore);
+      setRecycledPolicies(prev => prev.filter(p => p.id !== id));
+      setAllPolicies(prev => [policyToRestore, ...prev]);
+    }
+  };
+
+  const handlePermanentDeletePolicy = async (id: string) => {
+    await storage.permanentDeletePolicy(id);
+    setRecycledPolicies(prev => prev.filter(p => p.id !== id));
   };
 
   const handleDeleteLead = async (id: string) => {
-    await storage.deleteLead(id);
-    setAllLeads(prev => prev.filter(l => l.id !== id));
+    const leadToRecycle = allLeads.find(l => l.id === id);
+    if (leadToRecycle) {
+      await storage.moveToRecycle(leadToRecycle);
+      setAllLeads(prev => prev.filter(l => l.id !== id));
+      setRecycledLeads(prev => [leadToRecycle, ...prev]);
+    }
+  };
+
+  const handleRestoreLead = async (id: string) => {
+    const leadToRestore = recycledLeads.find(l => l.id === id);
+    if (leadToRestore) {
+      await storage.restoreFromRecycle(leadToRestore);
+      setRecycledLeads(prev => prev.filter(l => l.id !== id));
+      setAllLeads(prev => [leadToRestore, ...prev]);
+    }
+  };
+
+  const handlePermanentDeleteLead = async (id: string) => {
+    await storage.permanentDeleteLead(id);
+    setRecycledLeads(prev => prev.filter(l => l.id !== id));
+  };
+
+  const handleDeletePremiumRequest = async (id: string) => {
+    await storage.deletePremiumRequest(id);
+    setPremiumRequests(prev => prev.filter(r => r.id !== id));
   };
 
   const handleStatusChange = async (id: string, status: QuoteRequest['status']) => {
@@ -124,8 +214,14 @@ const App: React.FC = () => {
     await storage.importBackup(json);
     const p = await storage.getPolicies();
     const l = await storage.getLeads();
+    const rl = await storage.getRecycledLeads();
+    const rp = await storage.getRecycledPolicies();
+    const pr = await storage.getPremiumRequests();
     setAllPolicies(p);
     setAllLeads(l);
+    setRecycledLeads(rl);
+    setRecycledPolicies(rp);
+    setPremiumRequests(pr);
   };
 
   return (
@@ -136,28 +232,23 @@ const App: React.FC = () => {
             isAdmin={isAdmin} 
             setIsAdmin={setIsAdmin} 
             onOpenWizard={() => { setCurrentAnalysis(null); setShowWizard(true); }} 
-            onGoHome={() => { setCurrentAnalysis(null); setShowWizard(false); }}
+            onGoHome={handleGoHome}
           />
         )}
         
         <main className={`container mx-auto px-4 max-w-6xl bg-transparent ${isEmbedded ? 'py-0' : 'py-8'}`}>
           <Routes>
             <Route path="/" element={
-              showWizard ? (
-                <WizardForm onSubmit={handleNewLead} onCancel={() => setShowWizard(false)} />
-              ) : currentAnalysis ? (
-                <AnalysisResult 
-                  analysis={currentAnalysis} 
-                  onReset={() => setCurrentAnalysis(null)} 
-                  onOpenWizard={() => setShowWizard(true)}
-                />
-              ) : (
-                <UploadSection 
-                  onAnalysisComplete={handleNewAnalysis} 
-                  existingPolicies={allPolicies}
-                  onOpenWizard={() => setShowWizard(true)}
-                />
-              )
+              <MainView 
+                showWizard={showWizard}
+                setShowWizard={setShowWizard}
+                allPolicies={allPolicies}
+                currentAnalysis={currentAnalysis}
+                handleNewAnalysis={handleNewAnalysis}
+                handleNewLead={handleNewLead}
+                handleNewPremiumRequest={handleNewPremiumRequest}
+                setCurrentAnalysis={setCurrentAnalysis}
+              />
             } />
             
             <Route path="/admin" element={
@@ -165,8 +256,16 @@ const App: React.FC = () => {
                 <AdminDashboard 
                   policies={allPolicies} 
                   leads={allLeads}
+                  recycledLeads={recycledLeads}
+                  recycledPolicies={recycledPolicies}
+                  premiumRequests={premiumRequests}
                   onDeletePolicy={handleDeletePolicy}
+                  onRestorePolicy={handleRestorePolicy}
+                  onPermanentDeletePolicy={handlePermanentDeletePolicy}
                   onDeleteLead={handleDeleteLead}
+                  onRestoreLead={handleRestoreLead}
+                  onPermanentDeleteLead={handlePermanentDeleteLead}
+                  onDeletePremiumRequest={handleDeletePremiumRequest}
                   onStatusChange={handleStatusChange}
                   onImport={handleImport}
                   onViewPolicy={(p) => {

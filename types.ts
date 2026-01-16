@@ -4,6 +4,21 @@ export interface CoverageLimit {
   limit: string;
 }
 
+export interface PremiumUser {
+  id: string;
+  username: string;
+  password: string;
+  createdAt: string;
+}
+
+export interface PremiumRequest {
+  id: string;
+  username: string;
+  password: string;
+  email: string;
+  requestDate: string;
+}
+
 export interface PolicyAnalysis {
   id: string;
   filename: string;
@@ -58,7 +73,10 @@ export interface QuoteRequest {
   contactName: string;
   contactEmail: string;
   contactPhone: string;
-  // Metadata for AI-extracted leads
+  // Verification logic
+  verificationToken?: string;
+  isVerified?: boolean;
+  // Metadata
   extractedCoverage?: string;
   sourcePolicyId?: string;
 }

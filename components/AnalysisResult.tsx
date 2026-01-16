@@ -1,3 +1,4 @@
+
 import React, { useRef, useState } from 'react';
 import { PolicyAnalysis } from '../types';
 
@@ -54,7 +55,7 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysis, onReset, onOp
               </span>
               <span className="text-3xl font-black text-gray-700 tracking-tighter">/10</span>
             </div>
-            <p className="text-[10px] font-black text-gray-500 tracking-widest mt-2">Boss Score</p>
+            <p className="text-[10px] font-black text-gray-500 tracking-widest mt-2 uppercase">Boss score</p>
           </div>
 
           <div className="flex-1 space-y-6 relative z-10 text-left">
@@ -77,15 +78,15 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysis, onReset, onOp
         {/* INSURED DETAILS CARD */}
         <div className="lg:col-span-4 bg-black/40 backdrop-blur-2xl rounded-[3rem] p-10 border border-white/10 relative overflow-hidden flex flex-col shadow-2xl text-left">
           <div className="absolute left-0 top-10 bottom-10 w-1.5 bg-yellow-400 rounded-full" />
-          <h3 className="text-[10px] font-black text-gray-500 tracking-widest mb-10">Insured Details</h3>
+          <h3 className="text-[10px] font-black text-gray-500 tracking-widest mb-10 uppercase">Insured details</h3>
           <div className="space-y-8 flex-1 flex flex-col justify-center">
-            <DetailItem label="Company Name" value={analysis.insuredName} large highlight />
-            <DetailItem label="Policy Number" value={analysis.policyNumber || "Not Found"} highlight />
+            <DetailItem label="Company name" value={analysis.insuredName} large highlight />
+            <DetailItem label="Policy number" value={analysis.policyNumber || "Not Found"} highlight />
             <div className="grid grid-cols-2 gap-4">
               <DetailItem label="Effective" value={analysis.effectiveDate || "N/A"} />
               <DetailItem label="Expires" value={analysis.expirationDate || "N/A"} />
             </div>
-            <DetailItem label="Location Address" value={analysis.insuredAddress || "See Policy Documents"} />
+            <DetailItem label="Location address" value={analysis.insuredAddress || "See Policy Documents"} />
           </div>
         </div>
       </div>
@@ -97,7 +98,7 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysis, onReset, onOp
             <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center text-yellow-400 border border-white/10">
                <ShieldIcon />
             </div>
-            <h3 className="text-xl font-black tracking-tighter text-white">Coverage Analysis</h3>
+            <h3 className="text-xl font-black tracking-tighter text-white">Coverage analysis</h3>
           </div>
           <p className="text-gray-400 text-lg font-semibold leading-relaxed">
             {analysis.coverageAnalysis}
@@ -133,7 +134,7 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysis, onReset, onOp
           items={analysis.strengths} 
         />
         <ColumnCard 
-          title="Red Flags" 
+          title="Red flags" 
           color="red" 
           icon={<XIcon />} 
           items={analysis.redFlags} 
@@ -152,12 +153,12 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysis, onReset, onOp
         
         <div className="relative z-10 flex flex-col lg:flex-row gap-12 items-center">
           <div className="flex-1 space-y-6">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-yellow-400/10 border border-yellow-400/30 text-yellow-400 text-[10px] font-black tracking-widest animate-pulse">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-yellow-400/10 border border-yellow-400/30 text-yellow-400 text-[10px] font-black tracking-widest animate-pulse uppercase">
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-              Account Maximization
+              Account maximization
             </div>
             <h3 className="text-4xl font-black tracking-tighter leading-none">
-              Get A Full <span className="text-yellow-400">Bundle Review</span>
+              Get a full <span className="text-yellow-400">bundle review</span>
             </h3>
             <p className="text-gray-400 text-lg font-semibold leading-relaxed max-w-2xl">
               Do you have additional policies? For a truly comprehensive risk audit, the Boss needs to see your entire portfolio.
@@ -167,7 +168,7 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysis, onReset, onOp
           <div className="w-full lg:w-1/2 space-y-4">
             {isBundleRequested ? (
               <div className="bg-yellow-400/10 border border-yellow-400/30 p-8 rounded-[2rem] text-center animate-in zoom-in-95">
-                <p className="text-yellow-400 font-black text-xl tracking-tighter">Bundle Audit Initiated!</p>
+                <p className="text-yellow-400 font-black text-xl tracking-tighter">Bundle audit initiated!</p>
                 <p className="text-gray-500 text-sm mt-2 font-bold tracking-widest">Our risk specialists are standing by.</p>
               </div>
             ) : (
@@ -180,9 +181,9 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysis, onReset, onOp
                 />
                 <button 
                   onClick={handleRequestBundle}
-                  className="bg-yellow-400 text-black px-6 py-4 rounded-xl text-xs font-black tracking-wider hover:bg-yellow-500 transition-all active:scale-95 shadow-xl"
+                  className="bg-yellow-400 text-black px-6 py-4 rounded-xl text-xs font-black tracking-wider hover:bg-yellow-500 transition-all active:scale-95 shadow-xl uppercase"
                 >
-                  Audit My Entire Portfolio
+                  Audit my entire portfolio
                 </button>
               </div>
             )}
@@ -194,19 +195,19 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysis, onReset, onOp
       <div className="pt-10 flex flex-col md:flex-row justify-between items-center gap-6 border-t border-white/10 text-left">
         <button 
           onClick={onReset} 
-          className="text-gray-500 hover:text-white font-black text-xs tracking-wider transition-all flex items-center gap-3 group"
+          className="text-gray-500 hover:text-white font-black text-xs tracking-wider transition-all flex items-center gap-3 group uppercase"
         >
           <svg className="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>
-          New Audit
+          New audit
         </button>
         <div className="flex gap-4">
           <button 
             onClick={handleConsultExpert} 
-            className="bg-yellow-400 text-black px-12 py-5 rounded-2xl font-black text-xs tracking-wider hover:bg-yellow-500 transition-all shadow-xl active:scale-95 flex items-center gap-3"
+            className="bg-yellow-400 text-black px-12 py-5 rounded-2xl font-black text-xs tracking-wider hover:bg-yellow-500 transition-all shadow-xl active:scale-95 flex items-center gap-3 uppercase"
           >
-            Consult Expert
+            Consult expert
           </button>
         </div>
       </div>
@@ -216,7 +217,7 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysis, onReset, onOp
 
 const DetailItem: React.FC<{ label: string; value: string; large?: boolean; highlight?: boolean }> = ({ label, value, large, highlight }) => (
   <div className="space-y-1.5">
-    <p className="text-[9px] font-black text-gray-500 tracking-widest">{label}</p>
+    <p className="text-[9px] font-black text-gray-500 tracking-widest uppercase">{label}</p>
     <p className={`font-black tracking-tight leading-none ${large ? 'text-2xl' : 'text-base'} ${highlight ? 'text-yellow-400' : 'text-white'}`}>
       {value}
     </p>
@@ -231,7 +232,7 @@ const ColumnCard: React.FC<{ title: string; color: 'green' | 'red' | 'yellow'; i
   };
 
   return (
-    <div className="bg-black/40 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-10 space-y-10 flex flex-col h-full shadow-lg">
+    <div className="bg-black/40 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-10 space-y-10 flex flex-col h-full shadow-lg text-left">
       <h3 className={`text-xl font-black tracking-tighter ${titleColor[color]}`}>{title}</h3>
       <ul className="space-y-6 flex-1">
         {items.map((item, i) => (

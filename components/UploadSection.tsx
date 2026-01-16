@@ -1,24 +1,50 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { analyzePolicy, calculateFileHash } from '../services/geminiService';
-import { PolicyAnalysis } from '../types';
+import { PolicyAnalysis, PremiumRequest } from '../types';
+import { storage } from '../services/storage';
 
 interface UploadSectionProps {
-  onAnalysisComplete: (analysis: PolicyAnalysis, userDetails?: { name: string; email: string }) => void;
+  onAnalysisComplete: (analysis: PolicyAnalysis, details: { name: string; email: string }) => void;
   existingPolicies: PolicyAnalysis[];
   onOpenWizard: () => void;
+  onPremiumRequest: (request: PremiumRequest) => void;
 }
 
-const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, existingPolicies, onOpenWizard }) => {
+const FREE_LIMIT = 5;
+
+const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, existingPolicies, onOpenWizard, onPremiumRequest }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
+  
+  // Premium/Limit State
+  const [uploadCount, setUploadCount] = useState(0);
+  const [isPremium, setIsPremium] = useState(false);
+  const [showPremiumLogin, setShowPremiumLogin] = useState(false);
+  const [premiumUsername, setPremiumUsername] = useState('');
+  const [premiumPassword, setPremiumPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+
+  // Premium Request Form State
+  const [showRequestForm, setShowRequestForm] = useState(false);
+  const [reqUsername, setReqUsername] = useState('');
+  const [reqPassword, setReqPassword] = useState('');
+  const [reqEmail, setReqEmail] = useState('');
+  const [reqStatus, setReqStatus] = useState<'idle' | 'submitting' | 'done'>('idle');
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const progressIntervalRef = useRef<number | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
+    // Load local count
+    const count = parseInt(localStorage.getItem('boss_upload_count') || '0');
+    const premiumStatus = localStorage.getItem('boss_premium_session') === 'active';
+    setUploadCount(count);
+    setIsPremium(premiumStatus);
+
     return () => {
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
     };
@@ -55,6 +81,13 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Check Limit
+    if (!isPremium && uploadCount >= FREE_LIMIT) {
+      alert("Boss, you've reached your free audit limit. Log in for premium access.");
+      setShowPremiumLogin(true);
+      return;
+    }
+
     setIsUploading(true);
     startProgressSimulation();
     abortControllerRef.current = new AbortController();
@@ -70,13 +103,15 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
       const fileHash = await calculateFileHash(base64Data);
       const existingMatch = existingPolicies.find(p => p.fileHash === fileHash);
 
+      const userDetails = { name: userName, email: userEmail };
+
       if (existingMatch) {
         startProgressSimulation(true); 
         await new Promise(r => setTimeout(r, 800)); 
         if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
         setProgress(100);
         setTimeout(() => {
-          onAnalysisComplete(existingMatch, { name: userName, email: userEmail });
+          onAnalysisComplete(existingMatch, userDetails);
           setIsUploading(false);
           setProgress(0);
         }, 300);
@@ -86,22 +121,24 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
       // Perform AI Analysis
       const analysis = await analyzePolicy(file, abortControllerRef.current.signal);
       
-      // Cleanup progress simulation on success
+      // Increment count
+      if (!isPremium) {
+        const newCount = uploadCount + 1;
+        setUploadCount(newCount);
+        localStorage.setItem('boss_upload_count', newCount.toString());
+      }
+
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       setProgress(100);
       
-      // Finalizing transition
       setTimeout(() => {
-        onAnalysisComplete(analysis, { name: userName, email: userEmail });
+        onAnalysisComplete(analysis, userDetails);
         setIsUploading(false);
         setProgress(0);
       }, 500);
       
     } catch (err: any) {
-      if (err.name === 'AbortError') {
-        console.log('Audit stopped by Boss.');
-        return;
-      }
+      if (err.name === 'AbortError') return;
       console.error("Technical Audit Failure:", err);
       setIsUploading(false);
       setProgress(0);
@@ -112,124 +149,305 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
     }
   };
 
-  const isFormValid = userName.trim() !== '' && userEmail.trim() !== '';
+  const handlePremiumLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const isValid = await storage.validatePremiumUser(premiumUsername, premiumPassword);
+    if (isValid) {
+      setIsPremium(true);
+      localStorage.setItem('boss_premium_session', 'active');
+      setShowPremiumLogin(false);
+      setLoginError('');
+    } else {
+      setLoginError('Invalid credentials. Contact the Boss.');
+    }
+  };
+
+  const handleSubmitPremiumRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reqUsername || !reqPassword || !reqEmail) return;
+    setReqStatus('submitting');
+    
+    const request: PremiumRequest = {
+      id: Math.random().toString(36).substr(2, 9),
+      username: reqUsername,
+      password: reqPassword,
+      email: reqEmail,
+      requestDate: new Date().toLocaleString()
+    };
+    
+    // Simulate short delay
+    await new Promise(r => setTimeout(r, 1000));
+    onPremiumRequest(request);
+    setReqStatus('done');
+    setReqUsername('');
+    setReqPassword('');
+    setReqEmail('');
+    setTimeout(() => {
+      setReqStatus('idle');
+      setShowRequestForm(false);
+    }, 2000);
+  };
+
+  const isFormValid = userName.trim() !== '' && userEmail.trim().includes('@');
+  const isLimitReached = !isPremium && uploadCount >= FREE_LIMIT;
 
   return (
-    <div className="flex flex-col items-center justify-center text-center py-12 px-4 bg-transparent max-w-5xl mx-auto">
+    <div className="flex flex-col items-center justify-center text-center py-4 px-4 bg-transparent max-w-5xl mx-auto animate-in fade-in duration-1000">
       
       {/* HEADER */}
-      <div className="mb-16 space-y-4">
-        <h1 className="text-6xl md:text-[7.5rem] font-black leading-[0.85] tracking-tighter text-white">
+      <div className="mb-12 space-y-4">
+        <h1 className="text-6xl md:text-8xl font-black leading-[1.0] tracking-tighter text-white">
           Is Your Policy <br />
           <span className="text-yellow-400">Protecting</span> You?
         </h1>
-        <p className="text-gray-400 text-lg md:text-2xl font-bold max-w-2xl mx-auto leading-tight opacity-90">
-          Upload your policy for an instant technical audit. Identify gaps before they identify you.
+        <p className="text-gray-400 text-lg md:text-xl font-bold max-w-2xl mx-auto leading-tight opacity-90">
+          Upload your policy for an instant technical audit (5 free quotes). Identify gaps before they identify you.
         </p>
       </div>
 
-      {/* INPUTS */}
-      {!isUploading && (
-        <div className="w-full max-w-3xl grid grid-cols-1 md:grid-cols-2 gap-8 text-left mb-10">
-          <div className="space-y-3">
-            <label className="text-[11px] font-black text-gray-500 tracking-wider ml-1">Full Name</label>
-            <input 
-              type="text"
-              value={userName}
-              onChange={(e) => setUserName(e.target.value)}
-              placeholder="Enter your name"
-              className="w-full bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl px-6 py-5 text-sm font-bold focus:outline-none focus:border-yellow-400/40 transition-all text-white placeholder:text-gray-600 shadow-inner"
-            />
-          </div>
-          <div className="space-y-3">
-            <label className="text-[11px] font-black text-gray-500 tracking-wider ml-1">Email Address</label>
-            <input 
-              type="email"
-              value={userEmail}
-              onChange={(e) => setUserEmail(e.target.value)}
-              placeholder="boss@example.com"
-              className="w-full bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl px-6 py-5 text-sm font-bold focus:outline-none focus:border-yellow-400/40 transition-all text-white placeholder:text-gray-600 shadow-inner"
-            />
+      {isLimitReached && !showPremiumLogin && (
+        <div className="mb-10 w-full max-w-2xl bg-red-500/10 border border-red-500/20 p-8 rounded-3xl animate-in zoom-in-95">
+          <h3 className="text-xl font-black text-white mb-2">Limit reached, Boss.</h3>
+          <p className="text-gray-400 text-sm font-bold mb-6">
+            You have used your 5 free audits. To continue inspecting more policies, please log in with your personal premium account.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+             <button 
+              onClick={() => setShowPremiumLogin(true)}
+              className="px-8 py-3 bg-yellow-400 text-black font-black text-xs rounded-xl hover:bg-yellow-500 uppercase tracking-widest shadow-lg transition-all"
+             >
+               Log in to premium
+             </button>
+             <button 
+              onClick={() => setShowRequestForm(true)}
+              className="px-8 py-3 bg-white/5 border border-white/10 text-gray-400 font-black text-xs rounded-xl hover:bg-white/10 uppercase tracking-widest transition-all"
+             >
+               Ask the Boss for your premium access
+             </button>
           </div>
         </div>
       )}
 
-      {/* MAIN UPLOAD BOX */}
-      <div 
-        onClick={() => !isUploading && isFormValid && fileInputRef.current?.click()}
-        className={`w-full max-w-4xl min-h-[450px] rounded-[4.5rem] border border-white/10 flex flex-col items-center justify-center p-12 transition-all relative overflow-hidden bg-black/20 backdrop-blur-xl
-          ${isFormValid && !isUploading ? 'cursor-pointer hover:bg-white/[0.03] active:scale-[0.99] border-white/20 shadow-[0_40px_100px_rgba(0,0,0,0.4)]' : 'opacity-80'}
-        `}
-      >
-        <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="application/pdf" />
-
-        {isUploading ? (
-          <div className="w-full max-w-xl space-y-12 flex flex-col items-center animate-in fade-in zoom-in-95">
-            
-            {/* LARGE PERCENTAGE CIRCLE */}
-            <div className="relative w-32 h-32 mb-4">
-              <div className="absolute inset-0 border-[8px] border-yellow-400/10 rounded-full" />
-              <div className="absolute inset-0 border-[8px] border-yellow-400 border-t-transparent rounded-full animate-spin" />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-yellow-400 font-black text-2xl">{Math.round(progress)}%</span>
-              </div>
+      {showPremiumLogin && (
+        <div className="mb-10 w-full max-w-md bg-[#121212] border border-white/10 p-8 rounded-3xl shadow-2xl animate-in fade-in slide-in-from-top-4">
+          <h3 className="text-lg font-black text-white mb-6 uppercase tracking-widest">Premium login</h3>
+          <form onSubmit={handlePremiumLogin} className="space-y-4 text-left">
+            <div>
+              <label className="text-[10px] font-black text-gray-500 tracking-widest uppercase ml-1">Username</label>
+              <input 
+                type="text"
+                value={premiumUsername}
+                onChange={(e) => setPremiumUsername(e.target.value)}
+                className="w-full bg-black border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-yellow-400 outline-none text-white"
+                placeholder="BossUsername"
+              />
             </div>
-
-            <div className="w-full space-y-10">
-              {/* PROGRESS BAR TRACK */}
-              <div className="space-y-3">
-                <div className="flex justify-end pr-2">
-                   <span className="text-yellow-400 font-black text-xs tracking-widest">{progress.toFixed(1)}%</span>
-                </div>
-                <div className="h-4 w-full bg-white/5 rounded-full p-1 border border-white/10 overflow-hidden shadow-inner">
-                  <div 
-                    className="h-full bg-yellow-400 rounded-full transition-all duration-300 relative shadow-[0_0_25px_rgba(250,204,21,0.5)]" 
-                    style={{ width: `${progress}%` }}
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-[shimmer_2s_infinite]" />
-                  </div>
-                </div>
-              </div>
-
-              {/* STOP BUTTON */}
+            <div>
+              <label className="text-[10px] font-black text-gray-500 tracking-widest uppercase ml-1">Password</label>
+              <input 
+                type="password"
+                value={premiumPassword}
+                onChange={(e) => setPremiumPassword(e.target.value)}
+                className="w-full bg-black border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-yellow-400 outline-none text-white"
+                placeholder="••••••••"
+              />
+            </div>
+            {loginError && <p className="text-red-400 text-[10px] font-bold uppercase">{loginError}</p>}
+            <div className="pt-2 flex flex-col gap-3">
               <button 
-                onClick={(e) => { e.stopPropagation(); handleStop(); }}
-                className="px-10 py-4 bg-yellow-400 text-black font-black text-[11px] tracking-widest uppercase rounded-2xl hover:bg-yellow-500 transition-all active:scale-95 shadow-[0_10px_20px_rgba(250,204,21,0.2)]"
+                type="submit"
+                className="w-full bg-yellow-400 text-black font-black py-3 rounded-xl hover:bg-yellow-500 uppercase text-xs tracking-widest shadow-xl transition-all"
               >
-                Stop Audit
+                Authenticate access
+              </button>
+              <button 
+                type="button"
+                onClick={() => setShowPremiumLogin(false)}
+                className="w-full text-center text-gray-500 text-[10px] font-black uppercase hover:text-white transition-all"
+              >
+                Back to audit
               </button>
             </div>
-          </div>
-        ) : (
-          <div className="space-y-12 flex flex-col items-center">
-            <div className="bg-white/[0.05] p-10 rounded-[2.5rem] border border-white/10 flex items-center justify-center shadow-2xl group-hover:scale-105 transition-transform duration-500">
-              <svg className="w-16 h-16 text-yellow-400/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <rect x="4" y="4" width="16" height="16" rx="4" strokeWidth="2.5" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 15V9m0 0l-3 3m3-3l3 3" />
-              </svg>
+          </form>
+        </div>
+      )}
+
+      {!showPremiumLogin && !showRequestForm && (
+        <>
+          <div className="w-full max-w-3xl grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+            <div className="text-left space-y-2">
+              <label className="text-[10px] font-black text-gray-500 tracking-widest uppercase ml-1">Full name</label>
+              <input 
+                type="text"
+                value={userName}
+                onChange={(e) => setUserName(e.target.value)}
+                placeholder="Enter your name"
+                className="w-full bg-[#121212] border border-white/10 rounded-xl px-6 py-4 text-sm font-medium focus:outline-none focus:border-yellow-400/30 transition-all text-white placeholder:text-gray-700"
+              />
             </div>
-            <div className="text-center">
-              <h3 className="text-4xl md:text-[3.5rem] font-black tracking-tighter leading-none text-white">
-                {isFormValid ? 'Click to Upload Policy' : 'Enter Details to Audit'}
-              </h3>
-              {isFormValid && <p className="mt-4 text-gray-500 font-bold uppercase tracking-widest text-[10px]">Instant Boss Audit System</p>}
+            <div className="text-left space-y-2">
+              <label className="text-[10px] font-black text-gray-500 tracking-widest uppercase ml-1">Email address</label>
+              <input 
+                type="email"
+                value={userEmail}
+                onChange={(e) => setUserEmail(e.target.value)}
+                placeholder="boss@example.com"
+                className="w-full bg-[#121212] border border-white/10 rounded-xl px-6 py-4 text-sm font-medium focus:outline-none focus:border-yellow-400/30 transition-all text-white placeholder:text-gray-700"
+              />
             </div>
           </div>
-        )}
-      </div>
+
+          <div 
+            onClick={() => !isUploading && isFormValid && !isLimitReached && fileInputRef.current?.click()}
+            className={`w-full max-w-4xl min-h-[400px] rounded-[3.5rem] border border-white/10 flex flex-col items-center justify-center p-12 transition-all relative overflow-hidden bg-[#0d0d0d] shadow-2xl
+              ${!isUploading && isFormValid && !isLimitReached ? 'cursor-pointer hover:bg-white/[0.02] active:scale-[0.99] border-white/20' : 'opacity-80 cursor-default'}
+            `}
+          >
+            <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="application/pdf" />
+
+            {isUploading ? (
+              <div className="w-full max-w-xl space-y-12 flex flex-col items-center animate-in fade-in zoom-in-95">
+                <div className="relative w-32 h-32 mb-4">
+                  <div className="absolute inset-0 border-[8px] border-yellow-400/10 rounded-full" />
+                  <div className="absolute inset-0 border-[8px] border-yellow-400 border-t-transparent rounded-full animate-spin" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-yellow-400 font-black text-2xl">{Math.round(progress)}%</span>
+                  </div>
+                </div>
+                <div className="w-full space-y-10">
+                  <div className="space-y-3">
+                    <div className="flex justify-end pr-2">
+                       <span className="text-yellow-400 font-black text-xs tracking-widest">{progress.toFixed(1)}%</span>
+                    </div>
+                    <div className="h-4 w-full bg-white/5 rounded-full p-1 border border-white/10 overflow-hidden shadow-inner">
+                      <div 
+                        className="h-full bg-yellow-400 rounded-full transition-all duration-300 relative shadow-[0_0_25px_rgba(250,204,21,0.5)]" 
+                        style={{ width: `${progress}%` }}
+                      >
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-[shimmer_2s_infinite]" />
+                      </div>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); handleStop(); }}
+                    className="px-10 py-4 bg-yellow-400 text-black font-black text-[11px] tracking-widest uppercase rounded-2xl hover:bg-yellow-500 transition-all active:scale-95 shadow-[0_10px_20px_rgba(250,204,21,0.2)]"
+                  >
+                    Stop audit
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-12 flex flex-col items-center">
+                <div className="bg-white/[0.03] p-10 rounded-[2rem] border border-white/5 flex items-center justify-center shadow-2xl transition-transform duration-500 group">
+                  <div className="w-14 h-14 rounded-xl border-2 border-yellow-400/40 flex items-center justify-center">
+                    <svg className="w-8 h-8 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M11 15h2v-4h3l-4-4-4 4h3v4z"/>
+                      <path d="M20 18H4v-7H2v7c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2v-7h-2v7z"/>
+                    </svg>
+                  </div>
+                </div>
+                <div className="text-center">
+                  <h3 className="text-5xl md:text-7xl font-black tracking-tighter leading-none text-white">
+                    {isLimitReached ? 'Limit reached' : isFormValid ? 'Click to upload policy' : 'Enter details to audit'}
+                  </h3>
+                </div>
+              </div>
+            )}
+          </div>
+        </>
+      )}
 
       {/* FOOTER ACTIONS */}
       {!isUploading && (
-        <div className="mt-12 flex flex-col items-center gap-6">
+        <div className="mt-12 flex flex-col items-center gap-8 w-full">
           <button 
             onClick={onOpenWizard}
-            className="px-28 py-6 rounded-2xl bg-yellow-400 text-black font-black text-sm tracking-wider hover:bg-yellow-500 transition-all active:scale-95 shadow-[0_20px_50px_rgba(250,204,21,0.25)] uppercase"
+            className="px-24 py-6 rounded-2xl bg-yellow-400 text-black font-black text-sm tracking-widest hover:bg-yellow-500 transition-all active:scale-95 shadow-[0_15px_30px_rgba(250,204,21,0.3)] uppercase"
           >
-            Get A Quote
+            Get a quote
           </button>
-          <p className="text-gray-500 text-[11px] font-black tracking-widest opacity-80 uppercase">
-            Identify gaps before they identify you.
-          </p>
+          
+          <div className="flex flex-col gap-2 items-center">
+            <p className="text-[11px] text-gray-600 font-black uppercase tracking-[0.2em] opacity-80">
+              Identify gaps before they identify you.
+            </p>
+            {!isPremium && (
+              <p className="text-[10px] text-yellow-400/50 font-black uppercase tracking-widest">
+                {uploadCount} of {FREE_LIMIT} free audits used
+              </p>
+            )}
+          </div>
+
+          {/* ASKING THE BOSS FOR ACCESS SECTION */}
+          {showRequestForm ? (
+             <div className="w-full max-w-md bg-[#121212] border border-yellow-400/20 p-8 rounded-3xl shadow-2xl animate-in zoom-in-95 mt-8 text-left">
+               <h3 className="text-lg font-black text-white mb-6 uppercase tracking-widest">Request Premium Access</h3>
+               {reqStatus === 'done' ? (
+                  <div className="text-center py-6 text-yellow-400 font-black animate-in fade-in">
+                    Access request sent to the Boss vault!
+                  </div>
+               ) : (
+                  <form onSubmit={handleSubmitPremiumRequest} className="space-y-4">
+                    <div>
+                      <label className="text-[10px] font-black text-gray-500 tracking-widest uppercase ml-1">Proposed Username</label>
+                      <input 
+                        required
+                        type="text"
+                        value={reqUsername}
+                        onChange={(e) => setReqUsername(e.target.value)}
+                        className="w-full bg-black border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-yellow-400 outline-none text-white"
+                        placeholder="JohnDoe_Boss"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black text-gray-500 tracking-widest uppercase ml-1">Proposed Password</label>
+                      <input 
+                        required
+                        type="password"
+                        value={reqPassword}
+                        onChange={(e) => setReqPassword(e.target.value)}
+                        className="w-full bg-black border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-yellow-400 outline-none text-white"
+                        placeholder="••••••••"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black text-gray-500 tracking-widest uppercase ml-1">Business Email</label>
+                      <input 
+                        required
+                        type="email"
+                        value={reqEmail}
+                        onChange={(e) => setReqEmail(e.target.value)}
+                        className="w-full bg-black border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-yellow-400 outline-none text-white"
+                        placeholder="john@example.com"
+                      />
+                    </div>
+                    <div className="pt-2 flex flex-col gap-3">
+                      <button 
+                        type="submit"
+                        disabled={reqStatus === 'submitting'}
+                        className="w-full bg-yellow-400 text-black font-black py-3 rounded-xl hover:bg-yellow-500 uppercase text-xs tracking-widest shadow-xl transition-all"
+                      >
+                        {reqStatus === 'submitting' ? 'Sending request...' : 'Ask the boss for your premium access'}
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => setShowRequestForm(false)}
+                        className="w-full text-center text-gray-500 text-[10px] font-black uppercase hover:text-white transition-all"
+                      >
+                        Cancel request
+                      </button>
+                    </div>
+                  </form>
+               )}
+             </div>
+          ) : (
+            <button 
+              onClick={() => setShowRequestForm(true)}
+              className="mt-4 text-[10px] font-black text-gray-600 hover:text-yellow-400 uppercase tracking-[0.2em] transition-all border-b border-gray-800 pb-1"
+            >
+              Ask the boss for your premium access
+            </button>
+          )}
         </div>
       )}
 
