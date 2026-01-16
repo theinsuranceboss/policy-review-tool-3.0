@@ -143,7 +143,6 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
       setIsUploading(false);
       setProgress(0);
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-      // Removed redundant "Audit Failure:" prefix from alert
       alert(err.message || "Unknown error occurred on Boss Central Engine.");
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -176,7 +175,6 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
       requestDate: new Date().toLocaleString()
     };
     
-    // Simulate short delay
     await new Promise(r => setTimeout(r, 1000));
     onPremiumRequest(request);
     setReqStatus('done');
@@ -189,7 +187,6 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
     }, 2000);
   };
 
-  // Strictly allow only gmail.com and hotmail.com as requested
   const isValidEmail = (email: string) => {
     const emailRegex = /^[a-zA-Z0-9._%+-]+@(gmail|hotmail)\.com$/i;
     return emailRegex.test(email.trim());
@@ -377,14 +374,28 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
             Get a quote
           </button>
           
-          <div className="flex flex-col gap-2 items-center">
+          <div className="flex flex-col gap-6 items-center">
             <p className="text-[11px] text-gray-600 font-black uppercase tracking-[0.2em] opacity-80">
               Identify gaps before they identify you.
             </p>
+            
+            {/* NEW ANIMATED SQUARE LIMIT INDICATOR */}
             {!isPremium && (
-              <p className="text-[10px] text-yellow-400/50 font-black uppercase tracking-widest">
-                {uploadCount} of {FREE_LIMIT} free audits used
-              </p>
+              <div className="group relative mt-2">
+                <div className="absolute inset-0 bg-yellow-400/20 blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 rounded-3xl" />
+                <div 
+                  className="relative w-32 h-32 bg-[#0d0d0d] border-2 border-yellow-400/30 rounded-3xl flex flex-col items-center justify-center shadow-2xl transition-all duration-500 group-hover:bg-yellow-400 group-hover:border-yellow-400 group-hover:scale-110 cursor-default overflow-hidden animate-[bossFloat_4s_easeInOut_infinite]"
+                >
+                  <div className="absolute top-0 left-0 w-full h-1 bg-yellow-400/20 group-hover:bg-black/10" />
+                  <span className="text-3xl font-black text-yellow-400 group-hover:text-black leading-none tracking-tighter">
+                    {uploadCount}<span className="text-lg opacity-40 group-hover:opacity-60 mx-1">/</span>{FREE_LIMIT}
+                  </span>
+                  <span className="text-[9px] font-black text-gray-500 group-hover:text-black uppercase tracking-widest mt-2 px-4 text-center leading-tight">
+                    Free Audits<br/>Used
+                  </span>
+                  <div className="absolute bottom-2 w-8 h-1 bg-yellow-400/10 rounded-full group-hover:bg-black/20" />
+                </div>
+              </div>
             )}
           </div>
 
@@ -465,6 +476,11 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
         @keyframes shimmer {
           0% { transform: translateX(-100%); }
           100% { transform: translateX(200%); }
+        }
+        @keyframes bossFloat {
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          25% { transform: translateY(-8px) rotate(1deg); }
+          75% { transform: translateY(-4px) rotate(-1deg); }
         }
       `}</style>
     </div>
