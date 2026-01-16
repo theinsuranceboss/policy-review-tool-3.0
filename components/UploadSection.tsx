@@ -375,7 +375,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
           </button>
           
           <div className="flex flex-col gap-6 items-center">
-            <p className="text-[11px] text-gray-600 font-black uppercase tracking-[0.2em] opacity-80">
+            <p className="text-[11px] text-yellow-400 font-black uppercase tracking-[0.2em] opacity-80">
               Identify gaps before they identify you.
             </p>
             
