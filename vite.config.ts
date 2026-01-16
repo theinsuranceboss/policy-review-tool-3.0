@@ -1,17 +1,17 @@
-
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
-  // Load env file based on `mode` in the current working directory.
-  // The third parameter '' allows loading all environment variables regardless of prefix.
-  // Using type assertion for process to handle environments where Node.js types are not fully recognized.
+  // Load environment variables from the current working directory.
+  // The empty string prefix ('') allows Vite to load variables like API_KEY without requiring 'VITE_' prefix.
+  // (process as any).cwd() is used to handle various execution environments safely.
   const env = loadEnv(mode, (process as any).cwd(), '');
 
   return {
     plugins: [react()],
     define: {
-      // Securely inject the API key from the environment into the application.
+      // Safely injects the API key into the client-side bundle at build time.
+      // On Vercel, this will pull from the Project Settings -> Environment Variables.
       'process.env.API_KEY': JSON.stringify(env.API_KEY || process.env.API_KEY),
       'process.env.NODE_ENV': JSON.stringify(mode || 'production'),
     },
