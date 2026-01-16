@@ -13,18 +13,17 @@ export const calculateFileHash = async (base64: string): Promise<string> => {
 };
 
 /**
- * Deep scan of insurance policy using Gemini 3 Flash.
- * Optimized for speed and high reliability on standard API keys.
+ * Deep scan of insurance policy using Gemini 3 Pro.
+ * Optimized for complex technical auditing and advanced reasoning.
  */
 export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<PolicyAnalysis> => {
-  const apiKey = process.env.API_KEY;
-  
-  if (!apiKey || apiKey === 'undefined' || apiKey === '') {
+  // Always use process.env.API_KEY directly for initialization as per SDK guidelines.
+  if (!process.env.API_KEY || process.env.API_KEY === 'undefined' || process.env.API_KEY === '') {
     throw new Error("Audit Failure: The Insurance Boss API key is not configured. Please check your deployment settings.");
   }
 
-  // Use the exact required initialization pattern
-  const ai = new GoogleGenAI({ apiKey: apiKey });
+  // Use the exact required initialization pattern: new GoogleGenAI({ apiKey: ... })
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
 
@@ -52,7 +51,8 @@ export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<P
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      // Upgraded to gemini-3-pro-preview for advanced reasoning required by deep technical audits
+      model: 'gemini-3-pro-preview',
       contents: {
         parts: [
           { inlineData: { data: base64Data, mimeType: 'application/pdf' } },
@@ -60,7 +60,8 @@ export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<P
         ]
       },
       config: {
-        thinkingConfig: { thinkingBudget: 2000 },
+        // Thinking budget allocated for complex reasoning; max for Pro is 32768
+        thinkingConfig: { thinkingBudget: 4000 },
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -94,18 +95,29 @@ export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<P
                 properties: {
                   label: { type: Type.STRING },
                   limit: { type: Type.STRING }
-                }
+                },
+                propertyOrdering: ["label", "limit"]
               }
             }
           },
-          required: ["insuredName", "score", "summary", "redFlags", "rating"]
+          required: ["insuredName", "score", "summary", "redFlags", "rating"],
+          propertyOrdering: [
+            "insuredName", "insuredAddress", "policyNumber", "fein", "industry", 
+            "effectiveDate", "expirationDate", "type", "rating", "score", 
+            "summary", "coverageAnalysis", "premiumVsValue", "deductibles", 
+            "foundExclusions", "industryExclusionAudit", "strengths", 
+            "redFlags", "recommendations", "coverageLimits"
+          ]
         }
       }
     });
 
     if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
 
-    const result = JSON.parse(response.text || '{}');
+    // Access the .text property directly as per the @google/genai guidelines
+    const responseText = response.text?.trim() || '{}';
+    const result = JSON.parse(responseText);
+    
     return {
       id: Math.random().toString(36).substr(2, 9),
       filename: file.name,
