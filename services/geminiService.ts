@@ -13,8 +13,8 @@ export const calculateFileHash = async (base64: string): Promise<string> => {
 };
 
 /**
- * Deep scan of insurance policy using Gemini 3 Flash.
- * Switched to Flash to resolve quota limits while maintaining high-quality auditing.
+ * Deep scan of insurance policy using Gemini 3 Pro.
+ * Upgraded to gemini-3-pro-preview to ensure the highest quality auditing for complex insurance documents.
  */
 export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<PolicyAnalysis> => {
   // Always use process.env.API_KEY directly for initialization as per SDK guidelines.
@@ -50,9 +50,10 @@ export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<P
   Return ONLY a valid JSON object matching the requested schema.`;
 
   try {
+    // Calling generateContent with the model name and prompt directly on the ai client instance
     const response = await ai.models.generateContent({
-      // Switched to gemini-3-flash-preview to resolve 429 quota errors while maintaining excellent reasoning capabilities
-      model: 'gemini-3-flash-preview',
+      // Upgraded to gemini-3-pro-preview for complex reasoning and high-stakes auditing tasks
+      model: 'gemini-3-pro-preview',
       contents: {
         parts: [
           { inlineData: { data: base64Data, mimeType: 'application/pdf' } },
@@ -60,8 +61,8 @@ export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<P
         ]
       },
       config: {
-        // Thinking budget allocated for complex reasoning; max for Flash is 24576
-        thinkingConfig: { thinkingBudget: 4000 },
+        // Higher thinking budget for gemini-3-pro-preview to ensure deep reasoning on complex policy language
+        thinkingConfig: { thinkingBudget: 16000 },
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,

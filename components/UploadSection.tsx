@@ -4,9 +4,24 @@ import { analyzePolicy, calculateFileHash } from '../services/geminiService';
 import { PolicyAnalysis, PremiumRequest } from '../types';
 import { storage } from '../services/storage';
 
+// Fix: Correctly augment the global JSX namespace to support the custom Zapier element.
+// This resolves the error where 'zapier-interfaces-page-embed' is not recognized.
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      'zapier-interfaces-page-embed': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement> & {
+        'page-id'?: string;
+        'test-id'?: string;
+        'no-background'?: string;
+      };
+    }
+  }
+}
+
 interface UploadSectionProps {
   onAnalysisComplete: (analysis: PolicyAnalysis, details: { name: string; email: string }) => void;
   existingPolicies: PolicyAnalysis[];
+  // Fix: Changed type from void to () => void to allow passing callback functions correctly.
   onOpenWizard: () => void;
   onPremiumRequest: (request: PremiumRequest) => void;
 }
@@ -27,12 +42,8 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
   const [premiumPassword, setPremiumPassword] = useState('');
   const [loginError, setLoginError] = useState('');
 
-  // Premium Request Form State
+  // Premium Request View State
   const [showRequestForm, setShowRequestForm] = useState(false);
-  const [reqUsername, setReqUsername] = useState('');
-  const [reqPassword, setReqPassword] = useState('');
-  const [reqEmail, setReqEmail] = useState('');
-  const [reqStatus, setReqStatus] = useState<'idle' | 'submitting' | 'done'>('idle');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const progressIntervalRef = useRef<number | null>(null);
@@ -162,31 +173,6 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
     }
   };
 
-  const handleSubmitPremiumRequest = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!reqUsername || !reqPassword || !reqEmail) return;
-    setReqStatus('submitting');
-    
-    const request: PremiumRequest = {
-      id: Math.random().toString(36).substr(2, 9),
-      username: reqUsername,
-      password: reqPassword,
-      email: reqEmail,
-      requestDate: new Date().toLocaleString()
-    };
-    
-    await new Promise(r => setTimeout(r, 1000));
-    onPremiumRequest(request);
-    setReqStatus('done');
-    setReqUsername('');
-    setReqPassword('');
-    setReqEmail('');
-    setTimeout(() => {
-      setReqStatus('idle');
-      setShowRequestForm(false);
-    }, 2000);
-  };
-
   const isValidEmail = (email: string) => {
     const emailRegex = /^[a-zA-Z0-9._%+-]+@(gmail|hotmail)\.com$/i;
     return emailRegex.test(email.trim());
@@ -205,7 +191,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
           <span className="text-yellow-400">Protecting</span> You?
         </h1>
         <p className="text-gray-400 text-lg md:text-xl font-bold max-w-2xl mx-auto leading-tight opacity-90">
-          Upload your policy for an instant technical audit (5 free quotes). Identify gaps before they identify you.
+          Upload your policy for an instant technical audit (5 free quotes). <span className="text-yellow-400">Identify gaps before they identify you.</span>
         </p>
       </div>
 
@@ -379,7 +365,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
               Identify gaps before they identify you.
             </p>
             
-            {/* NEW ANIMATED SQUARE LIMIT INDICATOR */}
+            {/* ANIMATED SQUARE LIMIT INDICATOR */}
             {!isPremium && (
               <div className="group relative mt-2">
                 <div className="absolute inset-0 bg-yellow-400/20 blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 rounded-3xl" />
@@ -399,67 +385,38 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
             )}
           </div>
 
-          {/* ASKING THE BOSS FOR ACCESS SECTION */}
+          {/* ASKING THE BOSS FOR ACCESS SECTION - ZAPIER EMBED */}
           {showRequestForm ? (
-             <div className="w-full max-w-md bg-[#121212] border border-yellow-400/20 p-8 rounded-3xl shadow-2xl animate-in zoom-in-95 mt-8 text-left">
-               <h3 className="text-lg font-black text-white mb-6 uppercase tracking-widest">Request Premium Access</h3>
-               {reqStatus === 'done' ? (
-                  <div className="text-center py-6 text-yellow-400 font-black animate-in fade-in">
-                    Access request sent to the Boss vault!
-                  </div>
-               ) : (
-                  <form onSubmit={handleSubmitPremiumRequest} className="space-y-4">
-                    <div>
-                      <label className="text-[10px] font-black text-gray-500 tracking-widest uppercase ml-1">Proposed Username</label>
-                      <input 
-                        required
-                        type="text"
-                        value={reqUsername}
-                        onChange={(e) => setReqUsername(e.target.value)}
-                        className="w-full bg-black border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-yellow-400 outline-none text-white"
-                        placeholder="JohnDoe_Boss"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-black text-gray-500 tracking-widest uppercase ml-1">Proposed Password</label>
-                      <input 
-                        required
-                        type="password"
-                        value={reqPassword}
-                        onChange={(e) => setReqPassword(e.target.value)}
-                        className="w-full bg-black border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-yellow-400 outline-none text-white"
-                        placeholder="••••••••"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-black text-gray-500 tracking-widest uppercase ml-1">Business Email</label>
-                      <input 
-                        required
-                        type="email"
-                        value={reqEmail}
-                        onChange={(e) => setReqEmail(e.target.value)}
-                        className="w-full bg-black border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-yellow-400 outline-none text-white"
-                        placeholder="Enter email"
-                      />
-                    </div>
-                    <div className="pt-2 flex flex-col gap-3">
-                      <button 
-                        type="submit"
-                        disabled={reqStatus === 'submitting'}
-                        className="w-full bg-yellow-400 text-black font-black py-3 rounded-xl hover:bg-yellow-500 uppercase text-xs tracking-widest shadow-xl transition-all"
-                      >
-                        {reqStatus === 'submitting' ? 'Sending request...' : 'Ask the boss for your premium access'}
-                      </button>
-                      <button 
-                        type="button"
-                        onClick={() => setShowRequestForm(false)}
-                        className="w-full text-center text-gray-500 text-[10px] font-black uppercase hover:text-white transition-all"
-                      >
-                        Cancel request
-                      </button>
-                    </div>
-                  </form>
-               )}
+             <div className="w-full max-w-4xl bg-black border-[3px] border-yellow-400 p-6 rounded-[3.5rem] shadow-[0_30px_60px_rgba(0,0,0,0.8)] animate-in zoom-in-95 mt-8 overflow-hidden">
+               <div className="flex justify-between items-center mb-6 px-4">
+                 <div className="flex items-center gap-3">
+                   <div className="w-3 h-3 bg-yellow-400 rounded-full animate-pulse shadow-[0_0_10px_#facc15]" />
+                   <h3 className="text-sm font-black text-yellow-400 uppercase tracking-[0.3em]">Access Terminal</h3>
+                 </div>
+                 <button 
+                   onClick={() => setShowRequestForm(false)}
+                   className="text-gray-500 hover:text-yellow-400 transition-all p-2 rounded-full hover:bg-yellow-400/5 group"
+                 >
+                   <svg className="w-6 h-6 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M6 18L18 6M6 6l12 12" />
+                   </svg>
+                 </button>
+               </div>
+               <div className="rounded-[2.5rem] overflow-hidden bg-black border border-yellow-400/20 shadow-inner">
+                 <zapier-interfaces-page-embed 
+                   page-id='cmkmy80ag006s10ek5p3z5au5' 
+                   test-id='cmkmy80ag006s10ek5p3z5au5-zapier-interfaces-page-embed-iframe' 
+                   no-background='false'  
+                   style={{ maxWidth: '100%', height: '500px', display: 'block', backgroundColor: '#000000' }}
+                 />
+               </div>
+               <div className="mt-6 flex items-center justify-center gap-4">
+                 <div className="h-[1px] flex-1 bg-yellow-400/10" />
+                 <p className="text-[9px] text-yellow-400/60 font-black uppercase tracking-[0.5em] text-center">
+                   Authority Vault Authorization
+                 </p>
+                 <div className="h-[1px] flex-1 bg-yellow-400/10" />
+               </div>
              </div>
           ) : (
             <button 
