@@ -86,7 +86,7 @@ const Gatekeeper: React.FC<GatekeeperProps> = ({ onUnlock }) => {
             <div className="pt-8 border-t border-white/5">
               <button 
                 onClick={() => setShowZapier(true)}
-                className="text-gray-600 hover:text-white text-[10px] font-black uppercase tracking-[0.4em] transition-all border-b border-transparent hover:border-white pb-1"
+                className="w-full bg-yellow-400 text-black font-black py-7 rounded-2xl hover:bg-yellow-500 transition-all active:scale-95 shadow-[0_15px_40px_rgba(250,204,21,0.3)] uppercase text-sm tracking-[0.3em]"
               >
                 ASK THE BOSS FOR ACCESS
               </button>
