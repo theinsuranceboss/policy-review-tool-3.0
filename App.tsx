@@ -7,6 +7,7 @@ import AnalysisResult from './components/AnalysisResult';
 import AdminDashboard from './components/AdminDashboard';
 import AdminLogin from './components/AdminLogin';
 import WizardForm from './components/WizardForm';
+import Gatekeeper from './components/Gatekeeper';
 import { PolicyAnalysis, QuoteRequest, PremiumRequest } from './types';
 import { storage } from './services/storage';
 import { bossServer } from './services/serverService';
@@ -15,6 +16,8 @@ const { HashRouter, Routes, Route } = ReactRouterDOM;
 
 // Wrapper to handle main app view states
 const MainView: React.FC<{
+  isUnlocked: boolean,
+  onUnlock: () => void,
   showWizard: boolean,
   setShowWizard: (v: boolean) => void,
   allPolicies: PolicyAnalysis[],
@@ -23,17 +26,23 @@ const MainView: React.FC<{
   handleNewLead: (l: QuoteRequest) => void,
   handleNewPremiumRequest: (r: PremiumRequest) => void,
   setCurrentAnalysis: (a: PolicyAnalysis | null) => void,
-}> = ({ showWizard, setShowWizard, allPolicies, currentAnalysis, handleNewAnalysis, handleNewLead, handleNewPremiumRequest, setCurrentAnalysis }) => {
+  onReset: () => void,
+  auditCount: number,
+}> = ({ isUnlocked, onUnlock, showWizard, setShowWizard, allPolicies, currentAnalysis, handleNewAnalysis, handleNewLead, handleNewPremiumRequest, setCurrentAnalysis, onReset, auditCount }) => {
   
+  if (!isUnlocked) {
+    return <Gatekeeper onUnlock={onUnlock} />;
+  }
+
   if (showWizard) {
-    return <WizardForm onSubmit={handleNewLead} onCancel={() => setShowWizard(false)} />;
+    return <WizardForm onSubmit={handleNewLead} onCancel={onReset} />;
   }
 
   if (currentAnalysis) {
     return (
       <AnalysisResult 
         analysis={currentAnalysis} 
-        onReset={() => setCurrentAnalysis(null)} 
+        onReset={onReset} 
         onOpenWizard={() => setShowWizard(true)}
       />
     );
@@ -45,12 +54,14 @@ const MainView: React.FC<{
       existingPolicies={allPolicies}
       onOpenWizard={() => setShowWizard(true)}
       onPremiumRequest={handleNewPremiumRequest}
+      auditCount={auditCount}
     />
   );
 };
 
 const App: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isUnlocked, setIsUnlocked] = useState(false);
   const [allPolicies, setAllPolicies] = useState<PolicyAnalysis[]>([]);
   const [allLeads, setAllLeads] = useState<QuoteRequest[]>([]);
   const [recycledLeads, setRecycledLeads] = useState<QuoteRequest[]>([]);
@@ -59,8 +70,17 @@ const App: React.FC = () => {
   const [currentAnalysis, setCurrentAnalysis] = useState<PolicyAnalysis | null>(null);
   const [showWizard, setShowWizard] = useState(false);
   const [isEmbedded, setIsEmbedded] = useState(false);
+  const [auditCount, setAuditCount] = useState(0);
 
   useEffect(() => {
+    // Check unlock status from session storage to ensure it re-locks on new browser session
+    const unlocked = sessionStorage.getItem('boss_tool_unlocked') === 'true';
+    setIsUnlocked(unlocked);
+
+    // Load audit count from session storage
+    const count = parseInt(sessionStorage.getItem('boss_audit_count') || '0', 10);
+    setAuditCount(count);
+
     const params = new URLSearchParams(window.location.search);
     const embedMode = params.get('embed') === 'true' || window.location.href.includes('embed=true');
     setIsEmbedded(embedMode);
@@ -92,13 +112,36 @@ const App: React.FC = () => {
     loadData();
   }, []);
 
-  const handleGoHome = () => {
-    window.location.hash = '#/';
+  const handleUnlock = () => {
+    setIsUnlocked(true);
+    sessionStorage.setItem('boss_tool_unlocked', 'true');
+    // Session Welcome Message - strictly following protocol wording
+    alert("Uplink established. Provide the policy document for immediate technical inspection. Identify gaps before they identify you.");
+  };
+
+  const lockApp = () => {
+    setIsUnlocked(false);
+    sessionStorage.removeItem('boss_tool_unlocked');
     setCurrentAnalysis(null);
     setShowWizard(false);
   };
 
+  const handleGoHome = () => {
+    // Session Reset Protocol: Immediately revert to LOCKED status
+    lockApp();
+    window.location.hash = '#/';
+  };
+
+  const handleNewSession = () => {
+    // Session Reset Protocol: Immediately revert to LOCKED status
+    lockApp();
+  };
+
   const handleNewAnalysis = async (analysis: PolicyAnalysis, details: {name: string, email: string}) => {
+    const newCount = auditCount + 1;
+    setAuditCount(newCount);
+    sessionStorage.setItem('boss_audit_count', newCount.toString());
+
     setCurrentAnalysis(analysis);
     setShowWizard(false);
 
@@ -197,7 +240,7 @@ const App: React.FC = () => {
 
   const handleDeletePremiumRequest = async (id: string) => {
     await storage.deletePremiumRequest(id);
-    setPremiumRequests(prev => prev.filter(r => r.id !== id));
+    setPremiumRequests(prev => prev.filter(req => req.id !== id));
   };
 
   const handleStatusChange = async (id: string, status: QuoteRequest['status']) => {
@@ -240,6 +283,8 @@ const App: React.FC = () => {
           <Routes>
             <Route path="/" element={
               <MainView 
+                isUnlocked={isUnlocked}
+                onUnlock={handleUnlock}
                 showWizard={showWizard}
                 setShowWizard={setShowWizard}
                 allPolicies={allPolicies}
@@ -248,6 +293,8 @@ const App: React.FC = () => {
                 handleNewLead={handleNewLead}
                 handleNewPremiumRequest={handleNewPremiumRequest}
                 setCurrentAnalysis={setCurrentAnalysis}
+                onReset={handleNewSession}
+                auditCount={auditCount}
               />
             } />
             
@@ -283,7 +330,7 @@ const App: React.FC = () => {
 
         {!isEmbedded && (
           <footer className="py-12 border-none text-center text-gray-500 text-sm bg-transparent">
-            <p>© {new Date().getFullYear()} The Insurance Boss Policy Review Tool.</p>
+            <p>© {new Date().getFullYear()} The Insurance Boss Authority Audit.</p>
           </footer>
         )}
       </div>

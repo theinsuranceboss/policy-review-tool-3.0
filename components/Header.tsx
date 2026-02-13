@@ -67,12 +67,14 @@ const Header: React.FC<HeaderProps> = ({ isAdmin, setIsAdmin, onOpenWizard, onGo
           </div>
         ) : (
           <div className="flex items-center gap-3 md:gap-4">
-            <button 
-              onClick={onOpenWizard}
-              className="hidden md:block px-8 py-3.5 rounded-2xl bg-yellow-400 text-black text-xs font-black tracking-wider hover:bg-yellow-500 transition-all active:scale-95 shadow-[0_10px_20px_rgba(250,204,21,0.2)] uppercase"
+            <a 
+              href="https://theinsuranceboss.com/get-a-quote/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden md:block px-8 py-3.5 rounded-2xl bg-yellow-400 text-black text-xs font-black tracking-wider hover:bg-yellow-500 transition-all active:scale-95 shadow-[0_10px_20px_rgba(250,204,21,0.2)] uppercase text-center"
             >
               Get a quote
-            </button>
+            </a>
             <Link to="/admin" className="px-5 md:px-6 py-3.5 rounded-2xl bg-black/40 text-gray-400 border border-white/10 text-xs font-black tracking-wider hover:text-white hover:border-white/20 transition-all uppercase">
               Staff access
             </Link>

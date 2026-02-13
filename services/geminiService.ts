@@ -14,15 +14,12 @@ export const calculateFileHash = async (base64: string): Promise<string> => {
 
 /**
  * Deep scan of insurance policy using Gemini 3 Pro.
- * Upgraded to gemini-3-pro-preview to ensure the highest quality auditing for complex insurance documents.
  */
 export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<PolicyAnalysis> => {
-  // Always use process.env.API_KEY directly for initialization as per SDK guidelines.
   if (!process.env.API_KEY || process.env.API_KEY === 'undefined' || process.env.API_KEY === '') {
-    throw new Error("Audit Failure: The Insurance Boss API key is not configured. Please check your deployment settings.");
+    throw new Error("Uplink Failure: The Insurance Boss terminal is not configured.");
   }
 
-  // Use the exact required initialization pattern: new GoogleGenAI({ apiKey: ... })
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
@@ -36,23 +33,33 @@ export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<P
 
   const fileHash = await calculateFileHash(base64Data);
 
-  const prompt = `You are "The Insurance Boss", the world's most aggressive and accurate insurance auditor. 
-  Perform a DEEP technical audit of this policy PDF. Identify traps, hidden exclusions, and gaps in coverage.
-  Extract:
-  1. Insured details (Name, Address, FEIN, Policy #).
-  2. Limits (General Liability, Work Comp, etc).
-  3. Industry specific exclusions (e.g., "Injury to Subcontractors", "Residential Exclusion").
-  4. A score (0-10) based on coverage robustness.
-  5. 3 specific Red Flags.
-  6. 3 specific Strengths.
-  7. 3 expert Recommendations.
-  
-  Return ONLY a valid JSON object matching the requested schema.`;
+  const prompt = `### SECURITY PROTOCOL: UPLINK ENCRYPTED (AES-256) ###
+1. INITIAL STATUS: [LOCKED]
+2. MANDATORY ACTION: You are the "Authority Audit Terminal." 
+3. AUTHENTICATION STATUS: VERIFIED. Uplink established. Provide the policy document for immediate technical inspection. Identify gaps before they identify you.
+
+### TERMINAL CAPABILITIES ###
+- Perform instant technical audits on insurance policies.
+- Visual Style: Cinematic, high-stakes, authoritative technical reporting.
+
+Your mission:
+- Identify hidden gaps, coverage failures, and fine-print traps.
+- Use aggressive, professional, and "Boss-like" language.
+- Provide deep-dive technical analysis of limits and exclusions.
+
+Extract and analyze:
+1. Insured details (Name, Address, FEIN, Policy #).
+2. Limits (General Liability, Work Comp, etc).
+3. Industry specific exclusions (Identify fine-print traps).
+4. A score (0-10) based on coverage robustness.
+5. 3 specific Red Flags (Critical failures).
+6. 3 specific Strengths.
+7. 3 expert Recommendations (Authority moves).
+
+Return ONLY a valid JSON object matching the requested schema.`;
 
   try {
-    // Calling generateContent with the model name and prompt directly on the ai client instance
     const response = await ai.models.generateContent({
-      // Upgraded to gemini-3-pro-preview for complex reasoning and high-stakes auditing tasks
       model: 'gemini-3-pro-preview',
       contents: {
         parts: [
@@ -61,7 +68,6 @@ export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<P
         ]
       },
       config: {
-        // Higher thinking budget for gemini-3-pro-preview to ensure deep reasoning on complex policy language
         thinkingConfig: { thinkingBudget: 16000 },
         responseMimeType: "application/json",
         responseSchema: {
@@ -115,7 +121,6 @@ export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<P
 
     if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
 
-    // Access the .text property directly as per the @google/genai guidelines
     const responseText = response.text?.trim() || '{}';
     const result = JSON.parse(responseText);
     
@@ -129,7 +134,7 @@ export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<P
     };
   } catch (error: any) {
     if (error.name === 'AbortError') throw error;
-    console.error("Boss, Audit Failed:", error);
+    console.error("Authority Audit Failed:", error);
     throw error;
   }
 };
