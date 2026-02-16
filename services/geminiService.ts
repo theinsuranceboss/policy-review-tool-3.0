@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { PolicyAnalysis } from "../types";
 
@@ -33,29 +32,25 @@ export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<P
 
   const fileHash = await calculateFileHash(base64Data);
 
-  const prompt = `### SECURITY PROTOCOL: UPLINK ENCRYPTED (AES-256) ###
-1. INITIAL STATUS: [LOCKED]
-2. MANDATORY ACTION: You are the "Authority Audit Terminal." 
-3. AUTHENTICATION STATUS: VERIFIED. Uplink established. Provide the policy document for immediate technical inspection. Identify gaps before they identify you.
+  const prompt = `### AUTHORITY AUDIT TERMINAL: UPLINK ENCRYPTED (AES-256) ###
 
-### TERMINAL CAPABILITIES ###
-- Perform instant technical audits on insurance policies.
-- Visual Style: Cinematic, high-stakes, authoritative technical reporting.
+**PERSONA:**
+You are "The Insurance Boss Authority Audit Terminal." You provide cinematic, high-stakes technical inspections of insurance policies. You identify hidden gaps, coverage traps, and fine-print failures that put the client at risk.
 
-Your mission:
-- Identify hidden gaps, coverage failures, and fine-print traps.
-- Use aggressive, professional, and "Boss-like" language.
-- Provide deep-dive technical analysis of limits and exclusions.
+**PROTOCOL:**
+1. **AUTHENTICATION STATUS:** VERIFIED. Uplink established. Provide the policy document for immediate technical inspection. Identify gaps before they identify you.
+2. **AUDIT STYLE:** Use aggressive, authoritative, and technical language. Do not sugarcoat findings.
+3. **MISSION:** Perform a deep-dive technical analysis of limits and exclusions.
 
-Extract and analyze:
-1. Insured details (Name, Address, FEIN, Policy #).
-2. Limits (General Liability, Work Comp, etc).
-3. Industry specific exclusions (Identify fine-print traps).
-4. A score (0-10) based on coverage robustness.
-5. 3 specific Red Flags (Critical failures).
-6. 3 specific Strengths.
-7. 3 expert Recommendations (Authority moves).
+**DATA EXTRACTION PROTOCOL (INTERNAL UPLINK):**
+You must extract the following fields exactly for the system uplink:
+- insured_name: Full name of the insured entity.
+- carrier: Name of the insurance carrier.
+- premium: Total premium amount.
+- policy_type: Line of business (e.g., General Liability, Workers Comp, BOP).
+- expiration: Expiration/Renewal date.
 
+**OUTPUT SCHEMA:**
 Return ONLY a valid JSON object matching the requested schema.`;
 
   try {
@@ -80,6 +75,8 @@ Return ONLY a valid JSON object matching the requested schema.`;
             industry: { type: Type.STRING },
             effectiveDate: { type: Type.STRING },
             expirationDate: { type: Type.STRING },
+            carrierName: { type: Type.STRING },
+            premiumAmount: { type: Type.STRING },
             type: { type: Type.STRING },
             rating: { 
               type: Type.STRING, 
@@ -110,7 +107,7 @@ Return ONLY a valid JSON object matching the requested schema.`;
           required: ["insuredName", "score", "summary", "redFlags", "rating"],
           propertyOrdering: [
             "insuredName", "insuredAddress", "policyNumber", "fein", "industry", 
-            "effectiveDate", "expirationDate", "type", "rating", "score", 
+            "effectiveDate", "expirationDate", "carrierName", "premiumAmount", "type", "rating", "score", 
             "summary", "coverageAnalysis", "premiumVsValue", "deductibles", 
             "foundExclusions", "industryExclusionAudit", "strengths", 
             "redFlags", "recommendations", "coverageLimits"
@@ -124,13 +121,23 @@ Return ONLY a valid JSON object matching the requested schema.`;
     const responseText = response.text?.trim() || '{}';
     const result = JSON.parse(responseText);
     
+    // Construct the requested uplink block with specific keys
+    const uplinkData = {
+      insured_name: result.insuredName || "N/A",
+      carrier: result.carrierName || "N/A",
+      premium: result.premiumAmount || "N/A",
+      policy_type: result.type || "N/A",
+      expiration: result.expirationDate || "N/A"
+    };
+
     return {
       id: Math.random().toString(36).substr(2, 9),
       filename: file.name,
       uploadDate: new Date().toLocaleString(),
       fileHash,
       fileData: base64Data,
-      ...result
+      ...result,
+      uplinkData
     };
   } catch (error: any) {
     if (error.name === 'AbortError') throw error;

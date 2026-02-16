@@ -1,4 +1,3 @@
-
 export interface CoverageLimit {
   label: string;
   limit: string;
@@ -47,7 +46,14 @@ export interface PolicyAnalysis {
   redFlags: string[];
   recommendations: string[];
   fileData?: string; 
-  fileHash?: string; 
+  fileHash?: string;
+  uplinkData?: {
+    insured_name: string;
+    carrier: string;
+    premium: string;
+    policy_type: string;
+    expiration: string;
+  };
 }
 
 export interface QuoteRequest {

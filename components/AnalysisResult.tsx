@@ -41,7 +41,7 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysis, onReset, onOp
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* SUMMARY & SCORE CARD */}
-        <div className="lg:col-span-8 bg-black/40 backdrop-blur-2xl rounded-[3rem] p-10 border border-white/10 relative overflow-hidden flex flex-col md:flex-row items-center gap-10 shadow-2xl">
+        <div className="lg:col-span-8 bg-black/40 backdrop-blur-2xl rounded-[3rem] p-10 border border-white/10 relative overflow-hidden flex flex-col md:flex-row items-center gap-10 shadow-2xl text-left">
           <div className="absolute right-10 top-1/2 -translate-y-1/2 opacity-[0.03] pointer-events-none">
             <svg className="w-64 h-64" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 2.18l7 3.89v5.93c0 4.62-3 8.94-7 10-4-1.06-7-5.38-7-10V8.07l7-3.89z"/>
@@ -94,7 +94,7 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysis, onReset, onOp
       {/* SECTION 2: MIDDLE ROW (COVERAGE ANALYSIS & EXCLUSIONS) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 text-left">
         <div className="bg-black/40 backdrop-blur-2xl rounded-[2.5rem] p-10 border border-white/10 space-y-8 h-full shadow-xl">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 text-left">
             <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center text-yellow-400 border border-white/10">
                <ShieldIcon />
             </div>
@@ -105,7 +105,7 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysis, onReset, onOp
           </p>
         </div>
 
-        <div className="bg-black/40 backdrop-blur-2xl rounded-[2.5rem] p-10 border border-white/10 space-y-10 h-full shadow-xl">
+        <div className="bg-black/40 backdrop-blur-2xl rounded-[2.5rem] p-10 border border-white/10 space-y-10 h-full shadow-xl text-left">
           <h3 className="text-xl font-black tracking-tighter text-red-500">Exclusions</h3>
           <ul className="space-y-4">
             {analysis.foundExclusions?.map((ex, i) => (
@@ -191,6 +191,11 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysis, onReset, onOp
         </div>
       </div>
 
+      {/* SYSTEM UPLINK DATA (HIDDEN) */}
+      <div style={{ display: 'none' }} id="system-uplink-block" aria-hidden="true">
+        {JSON.stringify(analysis.uplinkData || {})}
+      </div>
+
       {/* ACTION BAR */}
       <div className="pt-10 flex flex-col md:flex-row justify-between items-center gap-6 border-t border-white/10 text-left">
         <button 
@@ -216,7 +221,7 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysis, onReset, onOp
 };
 
 const DetailItem: React.FC<{ label: string; value: string; large?: boolean; highlight?: boolean }> = ({ label, value, large, highlight }) => (
-  <div className="space-y-1.5">
+  <div className="space-y-1.5 text-left">
     <p className="text-[9px] font-black text-gray-500 tracking-widest uppercase">{label}</p>
     <p className={`font-black tracking-tight leading-none ${large ? 'text-2xl' : 'text-base'} ${highlight ? 'text-yellow-400' : 'text-white'}`}>
       {value}
@@ -234,7 +239,7 @@ const ColumnCard: React.FC<{ title: string; color: 'green' | 'red' | 'yellow'; i
   return (
     <div className="bg-black/40 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-10 space-y-10 flex flex-col h-full shadow-lg text-left">
       <h3 className={`text-xl font-black tracking-tighter ${titleColor[color]}`}>{title}</h3>
-      <ul className="space-y-6 flex-1">
+      <ul className="space-y-6 flex-1 text-left">
         {items.map((item, i) => (
           <li key={i} className="flex gap-4 items-start group">
             <div className={`mt-1 flex-shrink-0 ${titleColor[color]}`}>
