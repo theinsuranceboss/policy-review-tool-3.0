@@ -50,6 +50,8 @@ You must extract the following fields exactly for the system uplink:
 - policy_type: Line of business (e.g., General Liability, Workers Comp, BOP).
 - expiration: Expiration/Renewal date.
 
+**IMPORTANT:** The score MUST be on a scale of 0 to 10. If you calculate it as a percentage (0-100), divide it by 10.
+
 **OUTPUT SCHEMA:**
 Return ONLY a valid JSON object matching the requested schema.`;
 
@@ -82,7 +84,7 @@ Return ONLY a valid JSON object matching the requested schema.`;
               type: Type.STRING, 
               description: "Must be one of: Good, Needs Improvement, Poor, Unable to Analyze" 
             },
-            score: { type: Type.NUMBER },
+            score: { type: Type.NUMBER, description: "A score from 0.0 to 10.0" },
             summary: { type: Type.STRING },
             coverageAnalysis: { type: Type.STRING },
             premiumVsValue: { type: Type.STRING },
@@ -121,6 +123,14 @@ Return ONLY a valid JSON object matching the requested schema.`;
     const responseText = response.text?.trim() || '{}';
     const result = JSON.parse(responseText);
     
+    // Normalize score to 0-10 range if model outputs 0-100
+    let finalScore = result.score || 0;
+    if (finalScore > 10) {
+      finalScore = finalScore / 10;
+    }
+    // Cap it at 10 just in case
+    finalScore = Math.min(finalScore, 10);
+
     // Construct the requested uplink block with specific keys
     const uplinkData = {
       insured_name: result.insuredName || "N/A",
@@ -137,6 +147,7 @@ Return ONLY a valid JSON object matching the requested schema.`;
       fileHash,
       fileData: base64Data,
       ...result,
+      score: finalScore,
       uplinkData
     };
   } catch (error: any) {

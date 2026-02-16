@@ -1,5 +1,5 @@
 
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import { PolicyAnalysis } from '../types';
 
 interface AnalysisResultProps {
@@ -10,22 +10,9 @@ interface AnalysisResultProps {
 
 const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysis, onReset, onOpenWizard }) => {
   const dashboardRef = useRef<HTMLDivElement>(null);
-  const [bundleInfo, setBundleInfo] = useState('');
-  const [isBundleRequested, setIsBundleRequested] = useState(false);
 
   const handleConsultExpert = () => {
     window.open('https://theinsuranceboss.com/contact/', '_blank');
-  };
-
-  const handleRequestBundle = () => {
-    if (!bundleInfo.trim()) {
-      alert("Please provide some policy details for the bundle review, Boss.");
-      return;
-    }
-    setIsBundleRequested(true);
-    setTimeout(() => {
-      alert("Bundle review request received. Our experts will audit your entire portfolio.");
-    }, 500);
   };
 
   const getScoreColor = () => {
@@ -145,50 +132,6 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysis, onReset, onOp
           icon={<ArrowIcon />} 
           items={analysis.recommendations} 
         />
-      </div>
-
-      {/* NEW SECTION: FULL BUNDLE REVIEW REQUEST */}
-      <div className="bg-black/40 backdrop-blur-3xl rounded-[3rem] p-10 border border-yellow-400/20 relative overflow-hidden group shadow-2xl text-left">
-        <div className="absolute -right-20 -top-20 w-64 h-64 bg-yellow-400/5 rounded-full blur-[100px] pointer-events-none group-hover:bg-yellow-400/10 transition-all duration-700" />
-        
-        <div className="relative z-10 flex flex-col lg:flex-row gap-12 items-center">
-          <div className="flex-1 space-y-6">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-yellow-400/10 border border-yellow-400/30 text-yellow-400 text-[10px] font-black tracking-widest animate-pulse uppercase">
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-              Account maximization
-            </div>
-            <h3 className="text-4xl font-black tracking-tighter leading-none">
-              Get a full <span className="text-yellow-400">bundle review</span>
-            </h3>
-            <p className="text-gray-400 text-lg font-semibold leading-relaxed max-w-2xl">
-              Do you have additional policies? For a truly comprehensive risk audit, the Boss needs to see your entire portfolio.
-            </p>
-          </div>
-
-          <div className="w-full lg:w-1/2 space-y-4">
-            {isBundleRequested ? (
-              <div className="bg-yellow-400/10 border border-yellow-400/30 p-8 rounded-[2rem] text-center animate-in zoom-in-95">
-                <p className="text-yellow-400 font-black text-xl tracking-tighter">Bundle audit initiated!</p>
-                <p className="text-gray-500 text-sm mt-2 font-bold tracking-widest">Our risk specialists are standing by.</p>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-4">
-                <textarea 
-                  placeholder="e.g. Workers Comp ($1M/$1M), GL Excess ($5M)..."
-                  value={bundleInfo}
-                  onChange={(e) => setBundleInfo(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-sm font-bold focus:border-yellow-400 transition-all outline-none min-h-[100px] placeholder:text-gray-600 text-white"
-                />
-                <button 
-                  onClick={handleRequestBundle}
-                  className="bg-yellow-400 text-black px-6 py-4 rounded-xl text-xs font-black tracking-wider hover:bg-yellow-500 transition-all active:scale-95 shadow-xl uppercase"
-                >
-                  Audit my entire portfolio
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
       </div>
 
       {/* SYSTEM UPLINK DATA (HIDDEN) */}

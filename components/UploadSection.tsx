@@ -1,9 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { analyzePolicy, calculateFileHash } from '../services/geminiService';
 import { PolicyAnalysis, PremiumRequest } from '../types';
-import { storage } from '../services/storage';
 
-// Define the missing UploadSectionProps interface
 interface UploadSectionProps {
   onAnalysisComplete: (analysis: PolicyAnalysis, details: { name: string; email: string }) => void;
   existingPolicies: PolicyAnalysis[];
@@ -15,8 +13,6 @@ interface UploadSectionProps {
 const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, existingPolicies, onOpenWizard, onPremiumRequest, auditCount }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [userName, setUserName] = useState('');
-  const [userEmail, setUserEmail] = useState('');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const progressIntervalRef = useRef<number | null>(null);
@@ -74,7 +70,8 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
       const fileHash = await calculateFileHash(base64Data);
       const existingMatch = existingPolicies.find(p => p.fileHash === fileHash);
 
-      const userDetails = { name: userName, email: userEmail };
+      // Default values since inputs are removed
+      const userDetails = { name: 'Verified User', email: 'verified@user.terminal' };
 
       if (existingMatch) {
         startProgressSimulation(true); 
@@ -112,13 +109,6 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
     }
   };
 
-  const isValidEmail = (email: string) => {
-    const emailRegex = /^[a-zA-Z0-9._%+-]+@(gmail|hotmail)\.com$/i;
-    return emailRegex.test(email.trim());
-  };
-
-  const isFormValid = userName.trim().length > 1 && isValidEmail(userEmail);
-
   return (
     <div className="flex flex-col items-center justify-center text-center py-4 px-4 bg-transparent max-w-5xl mx-auto animate-in fade-in duration-1000">
       
@@ -133,33 +123,10 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
         </p>
       </div>
 
-      <div className="w-full max-w-3xl grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-        <div className="text-left space-y-2">
-          <label className="text-[10px] font-black text-yellow-400 tracking-widest uppercase ml-1">FULL NAME</label>
-          <input 
-            type="text"
-            value={userName}
-            onChange={(e) => setUserName(e.target.value)}
-            placeholder="Enter your name"
-            className="w-full bg-[#121212] border border-white/10 rounded-xl px-6 py-4 text-sm font-medium focus:outline-none focus:border-yellow-400/30 transition-all text-white placeholder:text-gray-700"
-          />
-        </div>
-        <div className="text-left space-y-2">
-          <label className="text-[10px] font-black text-yellow-400 tracking-widest uppercase ml-1">EMAIL ADDRESS</label>
-          <input 
-            type="email"
-            value={userEmail}
-            onChange={(e) => setUserEmail(e.target.value)}
-            placeholder="Enter email (@gmail.com or @hotmail.com)"
-            className="w-full bg-[#121212] border border-white/10 rounded-xl px-6 py-4 text-sm font-medium focus:outline-none focus:border-yellow-400/30 transition-all text-white placeholder:text-gray-700"
-          />
-        </div>
-      </div>
-
       <div 
-        onClick={() => !isUploading && isFormValid && fileInputRef.current?.click()}
+        onClick={() => !isUploading && fileInputRef.current?.click()}
         className={`w-full max-w-4xl min-h-[400px] rounded-[3.5rem] border border-white/10 flex flex-col items-center justify-center p-12 transition-all relative overflow-hidden bg-[#0d0d0d] shadow-2xl
-          ${!isUploading && isFormValid ? 'cursor-pointer hover:bg-white/[0.02] active:scale-[0.99] border-white/20' : 'opacity-80 cursor-default'}
+          ${!isUploading ? 'cursor-pointer hover:bg-white/[0.02] active:scale-[0.99] border-white/20' : 'opacity-80 cursor-default'}
         `}
       >
         <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="application/pdf" />
@@ -201,7 +168,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
               </div>
             </div>
             <h3 className="text-5xl md:text-7xl font-black tracking-tighter leading-none text-white max-w-2xl">
-              {isFormValid ? 'Upload Policy' : 'Valid Name & Gmail/Hotmail Required'}
+              Upload Policy
             </h3>
           </div>
         )}
