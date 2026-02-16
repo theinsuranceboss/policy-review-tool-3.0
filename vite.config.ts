@@ -1,4 +1,3 @@
-
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
@@ -9,9 +8,8 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     define: {
-      // If API_KEY is found during build (e.g. local .env), hardcode it. 
-      // Otherwise, leave the expression as-is to allow runtime injection/shimming.
-      'process.env.API_KEY': env.API_KEY ? JSON.stringify(env.API_KEY) : 'process.env.API_KEY',
+      // Explicitly injecting the key to ensure it's available as process.env.API_KEY in the browser
+      'process.env.API_KEY': JSON.stringify("AIzaSyBC7_4-_UWZTmamd4vV6tqE2KC0Dy7JwEY"),
       'process.env.NODE_ENV': JSON.stringify(mode || 'production'),
     },
     build: {
