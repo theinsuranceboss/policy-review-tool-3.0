@@ -18,6 +18,21 @@ export interface PremiumRequest {
   requestDate: string;
 }
 
+export interface EZLynxPayload {
+  client_first_name: string | null;
+  client_last_name: string | null;
+  client_email: string | null;
+  client_phone: string | null;
+  client_address_street: string | null;
+  client_address_city: string | null;
+  client_address_state: string | null;
+  client_address_zip: string | null;
+  policy_carrier: string | null;
+  policy_number: string | null;
+  policy_lob_type: string | null;
+  cross_sell_flags: string[];
+}
+
 export interface PolicyAnalysis {
   id: string;
   filename: string;
@@ -31,6 +46,8 @@ export interface PolicyAnalysis {
   contactPhone?: string;
   industry?: string;
   fein?: string;
+  carrierName?: string;
+  premiumAmount?: string;
   policyNumber: string;
   effectiveDate: string;
   expirationDate: string;
@@ -54,6 +71,7 @@ export interface PolicyAnalysis {
     policy_type: string;
     expiration: string;
   };
+  ezlynxData?: EZLynxPayload;
 }
 
 export interface QuoteRequest {
@@ -79,10 +97,8 @@ export interface QuoteRequest {
   contactName: string;
   contactEmail: string;
   contactPhone: string;
-  // Verification logic
   verificationToken?: string;
   isVerified?: boolean;
-  // Metadata
   extractedCoverage?: string;
   sourcePolicyId?: string;
 }

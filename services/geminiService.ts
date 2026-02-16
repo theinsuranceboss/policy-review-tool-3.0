@@ -1,6 +1,8 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { PolicyAnalysis } from "../types";
 
+const ZAPIER_WEBHOOK_URL = "https://hooks.zapier.com/hooks/catch/25763261/ucbw8rp/";
+
 /**
  * Calculates a SHA-256 hash of the file content for duplicate detection.
  */
@@ -9,6 +11,54 @@ export const calculateFileHash = async (base64: string): Promise<string> => {
   const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+};
+
+/**
+ * Triggers the outbound webhook for EZLynx/CRM integration.
+ */
+const triggerWebhook = async (data: any) => {
+  try {
+    await fetch(ZAPIER_WEBHOOK_URL, {
+      method: 'POST',
+      mode: 'no-cors', 
+      body: JSON.stringify(data),
+      headers: { 'Content-Type': 'application/json' }
+    });
+  } catch (e) {
+    console.warn("Webhook signaling failure (non-critical):", e);
+  }
+};
+
+/**
+ * Helper to perform exponential backoff retries for transient API errors.
+ */
+const callWithRetry = async <T>(fn: () => Promise<T>, retries = 3, baseDelay = 2000): Promise<T> => {
+  let lastError: any;
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      lastError = error;
+      const isRateLimit = error.message?.includes('429') || error.message?.includes('RESOURCE_EXHAUSTED');
+      const isOverloaded = error.message?.includes('503') || error.message?.includes('500');
+      const isInvalidBudget = error.message?.includes('400') && error.message?.includes('Budget 0');
+      
+      if ((isRateLimit || isOverloaded) && i < retries - 1) {
+        const delay = baseDelay * Math.pow(2, i);
+        console.warn(`Boss Engine Throttled. Attempt ${i + 1}/${retries}. Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      
+      if (isInvalidBudget) {
+          // This error is configuration-based, retrying won't fix it if the code is wrong.
+          throw error;
+      }
+      
+      throw error;
+    }
+  }
+  throw lastError;
 };
 
 /**
@@ -21,7 +71,6 @@ export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<P
     throw new Error("Uplink Failure: The Insurance Boss terminal API key is missing. Please ensure API_KEY is set in your environment.");
   }
 
-  // Use a fresh instance with trimmed key to ensure validity
   const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
   
   if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
@@ -35,113 +84,108 @@ export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<P
 
   const fileHash = await calculateFileHash(base64Data);
 
-  const prompt = `### AUTHORITY AUDIT TERMINAL: UPLINK ENCRYPTED (AES-256) ###
+  const prompt = `### ROLE: High-Precision Underwriting Engine for "The Insurance Boss" ###
 
-**PERSONA:**
-You are "The Insurance Boss Authority Audit Terminal." You provide cinematic, high-stakes technical inspections of insurance policies. You identify hidden gaps, coverage traps, and fine-print failures that put the client at risk.
+**MISSION:** 
+Extract insurance data and format it into a granular JSON structure for EZLynx and Zapier Tables.
 
-**PROTOCOL:**
-1. **AUTHENTICATION STATUS:** VERIFIED. Uplink established.
-2. **AUDIT STYLE:** Use aggressive, authoritative, and technical language. Do not sugarcoat findings.
-3. **MISSION:** Perform a deep-dive technical analysis of limits and exclusions.
+**STRICT EXTRACTION RULES:**
+1. **Output Format:** Return ONLY a raw JSON object. Do not include markdown tags like "\`\`\`json".
+2. **Address Splitting (Mandatory):** Do NOT provide a single address string. You MUST split the address into: client_address_street, client_address_city, client_address_state, and client_address_zip.
+3. **Name Splitting (Mandatory):** Always separate client_first_name and client_last_name.
+4. **Missing Data:** Use null for any field not found in the document.
+5. **Accuracy:** Extract client_phone and client_email exactly as they appear.
+6. **Dates:** Format as YYYY-MM-DD.
+7. **Logic Integration:** Analyze the document. If it is an Auto policy but no Homeowner policy is detected, add "Auto no Home" to the cross_sell_flags array.
 
-**DATA EXTRACTION PROTOCOL (INTERNAL UPLINK):**
-You must extract the following fields exactly for the system uplink:
-- insured_name: Full name of the insured entity.
-- carrier: Name of the insurance carrier.
-- premium: Total premium amount.
-- policy_type: Line of business (e.g., General Liability, Workers Comp, BOP).
-- expiration: Expiration/Renewal date.
+**AUDIT PERSONA:**
+You are also the "Authority Audit Terminal." Use authoritative, technical, and direct language for the user-facing summary and recommendations.
 
-**IMPORTANT:** The score MUST be on a scale of 0 to 10. If you calculate it as a percentage (0-100), divide it by 10.
-
-**OUTPUT SCHEMA:**
-Return ONLY a valid JSON object matching the requested schema.`;
+**JSON SCHEMA PROTOCOL:**
+You must satisfy the response schema provided. The "ezlynx_data" property MUST use the exact keys required for Zapier Tables and EZLynx mapping.`;
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
-      contents: {
-        parts: [
-          { inlineData: { data: base64Data, mimeType: 'application/pdf' } },
-          { text: prompt }
-        ]
-      },
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            insuredName: { type: Type.STRING },
-            insuredAddress: { type: Type.STRING },
-            policyNumber: { type: Type.STRING },
-            fein: { type: Type.STRING },
-            industry: { type: Type.STRING },
-            effectiveDate: { type: Type.STRING },
-            expirationDate: { type: Type.STRING },
-            carrierName: { type: Type.STRING },
-            premiumAmount: { type: Type.STRING },
-            type: { type: Type.STRING },
-            rating: { 
-              type: Type.STRING, 
-              description: "Must be one of: Good, Needs Improvement, Poor, Unable to Analyze" 
-            },
-            score: { type: Type.NUMBER, description: "A score from 0.0 to 10.0" },
-            summary: { type: Type.STRING },
-            coverageAnalysis: { type: Type.STRING },
-            premiumVsValue: { type: Type.STRING },
-            deductibles: { type: Type.STRING },
-            foundExclusions: { type: Type.ARRAY, items: { type: Type.STRING } },
-            industryExclusionAudit: { type: Type.STRING },
-            strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
-            redFlags: { type: Type.ARRAY, items: { type: Type.STRING } },
-            recommendations: { type: Type.ARRAY, items: { type: Type.STRING } },
-            coverageLimits: {
-              type: Type.ARRAY,
-              items: {
+    const generateContent = async () => {
+      return await ai.models.generateContent({
+        model: 'gemini-3-pro-preview',
+        contents: {
+          parts: [
+            { inlineData: { data: base64Data, mimeType: 'application/pdf' } },
+            { text: prompt }
+          ]
+        },
+        config: {
+          responseMimeType: "application/json",
+          // Note: Removed thinkingBudget: 0 to resolve "Budget 0 is invalid" error.
+          // The model will now use its default reasoning configuration.
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              insuredName: { type: Type.STRING },
+              insuredAddress: { type: Type.STRING },
+              policyNumber: { type: Type.STRING },
+              fein: { type: Type.STRING },
+              industry: { type: Type.STRING },
+              effectiveDate: { type: Type.STRING },
+              expirationDate: { type: Type.STRING },
+              carrierName: { type: Type.STRING },
+              premiumAmount: { type: Type.STRING },
+              type: { type: Type.STRING },
+              rating: { type: Type.STRING },
+              score: { type: Type.NUMBER },
+              summary: { type: Type.STRING },
+              coverageAnalysis: { type: Type.STRING },
+              premiumVsValue: { type: Type.STRING },
+              deductibles: { type: Type.STRING },
+              foundExclusions: { type: Type.ARRAY, items: { type: Type.STRING } },
+              industryExclusionAudit: { type: Type.STRING },
+              strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
+              redFlags: { type: Type.ARRAY, items: { type: Type.STRING } },
+              recommendations: { type: Type.ARRAY, items: { type: Type.STRING } },
+              coverageLimits: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    label: { type: Type.STRING },
+                    limit: { type: Type.STRING }
+                  }
+                }
+              },
+              ezlynx_data: {
                 type: Type.OBJECT,
                 properties: {
-                  label: { type: Type.STRING },
-                  limit: { type: Type.STRING }
-                },
-                propertyOrdering: ["label", "limit"]
+                  client_first_name: { type: Type.STRING, nullable: true },
+                  client_last_name: { type: Type.STRING, nullable: true },
+                  client_email: { type: Type.STRING, nullable: true },
+                  client_phone: { type: Type.STRING, nullable: true },
+                  client_address_street: { type: Type.STRING, nullable: true },
+                  client_address_city: { type: Type.STRING, nullable: true },
+                  client_address_state: { type: Type.STRING, nullable: true },
+                  client_address_zip: { type: Type.STRING, nullable: true },
+                  policy_carrier: { type: Type.STRING, nullable: true },
+                  policy_number: { type: Type.STRING, nullable: true },
+                  policy_lob_type: { type: Type.STRING, nullable: true },
+                  cross_sell_flags: { type: Type.ARRAY, items: { type: Type.STRING } }
+                }
               }
             }
-          },
-          required: ["insuredName", "score", "summary", "redFlags", "rating"],
-          propertyOrdering: [
-            "insuredName", "insuredAddress", "policyNumber", "fein", "industry", 
-            "effectiveDate", "expirationDate", "carrierName", "premiumAmount", "type", "rating", "score", 
-            "summary", "coverageAnalysis", "premiumVsValue", "deductibles", 
-            "foundExclusions", "industryExclusionAudit", "strengths", 
-            "redFlags", "recommendations", "coverageLimits"
-          ]
+          }
         }
-      }
-    });
+      });
+    };
+
+    const response = await callWithRetry(generateContent);
 
     if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
 
-    const responseText = response.text?.trim() || '{}';
-    const result = JSON.parse(responseText);
+    const result = JSON.parse(response.text || '{}');
     
-    // Normalize score to 0-10 range if model outputs 0-100
     let finalScore = result.score || 0;
-    if (finalScore > 10) {
-      finalScore = finalScore / 10;
-    }
+    if (finalScore > 10) finalScore = finalScore / 10;
     finalScore = Math.max(0, Math.min(finalScore, 10));
 
-    // Construct the requested uplink block with specific keys
-    const uplinkData = {
-      insured_name: result.insuredName || "N/A",
-      carrier: result.carrierName || "N/A",
-      premium: result.premiumAmount || "N/A",
-      policy_type: result.type || "N/A",
-      expiration: result.expirationDate || "N/A"
-    };
-
-    return {
+    const analysis: PolicyAnalysis = {
       id: Math.random().toString(36).substr(2, 9),
       filename: file.name,
       uploadDate: new Date().toLocaleString(),
@@ -149,24 +193,37 @@ Return ONLY a valid JSON object matching the requested schema.`;
       fileData: base64Data,
       ...result,
       score: finalScore,
-      uplinkData
+      ezlynxData: result.ezlynx_data,
+      uplinkData: {
+        insured_name: result.insuredName || "N/A",
+        carrier: result.carrierName || "N/A",
+        premium: result.premiumAmount || "N/A",
+        policy_type: result.type || "N/A",
+        expiration: result.expirationDate || "N/A"
+      }
     };
+
+    // Auto-trigger EZLynx/Zapier Webhook
+    if (analysis.ezlynxData) {
+      triggerWebhook({
+        webhook_target: ZAPIER_WEBHOOK_URL,
+        ...analysis.ezlynxData
+      });
+    }
+
+    return analysis;
   } catch (error: any) {
     if (error.name === 'AbortError') throw error;
     
-    // Attempt to extract a cleaner message from complex error objects
-    let message = error.message || "Unknown error occurred.";
-    try {
-      if (message.includes('{')) {
-        const jsonMatch = message.match(/\{.*\}/);
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]);
-          message = parsed.error?.message || message;
-        }
-      }
-    } catch (e) {}
+    // Customize quota error message for the user
+    if (error.message?.includes('429') || error.message?.includes('RESOURCE_EXHAUSTED')) {
+      throw new Error("Uplink Throttled: Boss Central Engine quota has been exhausted. Please wait 60 seconds or switch to a high-capacity API key.");
+    }
 
-    console.error("Authority Audit Failed:", error);
-    throw new Error(message);
+    if (error.message?.includes('400') && error.message?.includes('Budget 0')) {
+      throw new Error("Uplink Configuration Error: The Boss Central Engine rejected a zero-thinking budget. Please contact support.");
+    }
+    
+    throw new Error(error.message || "Unknown error occurred on Boss Central Engine.");
   }
 };

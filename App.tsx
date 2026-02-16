@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import Header from './components/Header';
@@ -28,7 +27,8 @@ const MainView: React.FC<{
   setCurrentAnalysis: (a: PolicyAnalysis | null) => void,
   onReset: () => void,
   auditCount: number,
-}> = ({ isUnlocked, onUnlock, showWizard, setShowWizard, allPolicies, currentAnalysis, handleNewAnalysis, handleNewLead, handleNewPremiumRequest, setCurrentAnalysis, onReset, auditCount }) => {
+  isAdmin?: boolean;
+}> = ({ isUnlocked, onUnlock, showWizard, setShowWizard, allPolicies, currentAnalysis, handleNewAnalysis, handleNewLead, handleNewPremiumRequest, setCurrentAnalysis, onReset, auditCount, isAdmin }) => {
   
   if (!isUnlocked) {
     return <Gatekeeper onUnlock={onUnlock} />;
@@ -44,6 +44,7 @@ const MainView: React.FC<{
         analysis={currentAnalysis} 
         onReset={onReset} 
         onOpenWizard={() => setShowWizard(true)}
+        isAdmin={isAdmin}
       />
     );
   }
@@ -153,6 +154,7 @@ const App: React.FC = () => {
       bossServer.upstream('policy', analysis);
     });
 
+    // Create a robust lead from the extracted analysis data
     const autoLead: QuoteRequest = {
       id: `auto-${analysis.id}`,
       submissionDate: new Date().toLocaleString(),
@@ -167,12 +169,13 @@ const App: React.FC = () => {
       country: 'United States',
       industries: analysis.industry ? [analysis.industry] : ['Policy Audit'],
       hasActiveCoverage: true,
-      knowsPremium: false,
+      knowsPremium: !!analysis.premiumAmount,
       hasDeclPage: true,
       contactName: details.name || analysis.insuredName || 'Insured',
       contactEmail: details.email || analysis.contactEmail || '',
       contactPhone: analysis.contactPhone || '',
-      sourcePolicyId: analysis.id
+      sourcePolicyId: analysis.id,
+      extractedCoverage: analysis.summary
     };
 
     handleNewLead(autoLead);
@@ -295,6 +298,7 @@ const App: React.FC = () => {
                 setCurrentAnalysis={setCurrentAnalysis}
                 onReset={handleNewSession}
                 auditCount={auditCount}
+                isAdmin={isAdmin}
               />
             } />
             
