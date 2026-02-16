@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { PolicyAnalysis } from "../types";
 
@@ -65,13 +66,9 @@ const callWithRetry = async <T>(fn: () => Promise<T>, retries = 3, baseDelay = 2
  * Deep scan of insurance policy using Gemini.
  */
 export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<PolicyAnalysis> => {
-  const apiKey = process.env.API_KEY;
-  
-  if (!apiKey || apiKey === 'undefined' || apiKey === 'null' || apiKey.trim() === '') {
-    throw new Error("Uplink Failure: The Insurance Boss terminal API key is missing. Please ensure API_KEY is set in your environment.");
-  }
-
-  const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
+  // Rely on the environment variable 'process.env.API_KEY' directly as per guidelines.
+  // The system handles injection automatically.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
 
@@ -116,8 +113,7 @@ You must satisfy the response schema provided. The "ezlynx_data" property MUST u
         },
         config: {
           responseMimeType: "application/json",
-          // Note: Removed thinkingBudget: 0 to resolve "Budget 0 is invalid" error.
-          // The model will now use its default reasoning configuration.
+          // The model will use its default reasoning configuration.
           responseSchema: {
             type: Type.OBJECT,
             properties: {
