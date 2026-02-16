@@ -12,14 +12,17 @@ export const calculateFileHash = async (base64: string): Promise<string> => {
 };
 
 /**
- * Deep scan of insurance policy using Gemini 3 Pro.
+ * Deep scan of insurance policy using Gemini.
  */
 export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<PolicyAnalysis> => {
-  if (!process.env.API_KEY || process.env.API_KEY === 'undefined' || process.env.API_KEY === '') {
-    throw new Error("Uplink Failure: The Insurance Boss terminal is not configured.");
+  const apiKey = process.env.API_KEY;
+  
+  if (!apiKey || apiKey === 'undefined' || apiKey === 'null' || apiKey.trim() === '') {
+    throw new Error("Uplink Failure: The Insurance Boss terminal API key is missing. Please ensure API_KEY is set in your environment.");
   }
 
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // Use a fresh instance with trimmed key to ensure validity
+  const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
   
   if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
 
@@ -38,7 +41,7 @@ export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<P
 You are "The Insurance Boss Authority Audit Terminal." You provide cinematic, high-stakes technical inspections of insurance policies. You identify hidden gaps, coverage traps, and fine-print failures that put the client at risk.
 
 **PROTOCOL:**
-1. **AUTHENTICATION STATUS:** VERIFIED. Uplink established. Provide the policy document for immediate technical inspection. Identify gaps before they identify you.
+1. **AUTHENTICATION STATUS:** VERIFIED. Uplink established.
 2. **AUDIT STYLE:** Use aggressive, authoritative, and technical language. Do not sugarcoat findings.
 3. **MISSION:** Perform a deep-dive technical analysis of limits and exclusions.
 
@@ -65,7 +68,6 @@ Return ONLY a valid JSON object matching the requested schema.`;
         ]
       },
       config: {
-        thinkingConfig: { thinkingBudget: 16000 },
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -128,8 +130,7 @@ Return ONLY a valid JSON object matching the requested schema.`;
     if (finalScore > 10) {
       finalScore = finalScore / 10;
     }
-    // Cap it at 10 just in case
-    finalScore = Math.min(finalScore, 10);
+    finalScore = Math.max(0, Math.min(finalScore, 10));
 
     // Construct the requested uplink block with specific keys
     const uplinkData = {
@@ -152,7 +153,20 @@ Return ONLY a valid JSON object matching the requested schema.`;
     };
   } catch (error: any) {
     if (error.name === 'AbortError') throw error;
+    
+    // Attempt to extract a cleaner message from complex error objects
+    let message = error.message || "Unknown error occurred.";
+    try {
+      if (message.includes('{')) {
+        const jsonMatch = message.match(/\{.*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          message = parsed.error?.message || message;
+        }
+      }
+    } catch (e) {}
+
     console.error("Authority Audit Failed:", error);
-    throw error;
+    throw new Error(message);
   }
 };
