@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { PolicyAnalysis } from '../types';
 
 interface AnalysisResultProps {
@@ -10,9 +10,34 @@ interface AnalysisResultProps {
 
 const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysis, onReset, onOpenWizard, isAdmin }) => {
   const dashboardRef = useRef<HTMLDivElement>(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const handleConsultExpert = () => {
     window.open('https://theinsuranceboss.com/contact/', '_blank');
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!dashboardRef.current) return;
+    setIsGeneratingPdf(true);
+    
+    const element = dashboardRef.current;
+    const opt = {
+      margin: 10,
+      filename: `Boss_Audit_${analysis.insuredName.replace(/\s+/g, '_')}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#000000' },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    try {
+      // @ts-ignore
+      await html2pdf().set(opt).from(element).save();
+    } catch (error) {
+      console.error("PDF Generation Error:", error);
+      alert("Boss Terminal Alert: Failed to generate PDF export.");
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   const getScoreColor = () => {
@@ -22,119 +47,131 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysis, onReset, onOp
   };
 
   return (
-    <div ref={dashboardRef} className="relative space-y-8 animate-in fade-in duration-1000 pb-24 max-w-7xl mx-auto px-4 bg-transparent text-white">
+    <div className="relative animate-in fade-in duration-1000 pb-24 max-w-7xl mx-auto px-4 bg-transparent text-white">
       
-      {/* SECTION 1: TOP HEADER (SUMMARY & INSURED DETAILS) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      {/* THE BRANDED DASHBOARD (Capture target for PDF) */}
+      <div ref={dashboardRef} className="space-y-8 p-6 bg-black rounded-[4rem]">
         
-        {/* SUMMARY & SCORE CARD */}
-        <div className="lg:col-span-8 bg-black/40 backdrop-blur-2xl rounded-[3rem] p-10 border border-white/10 relative overflow-hidden flex flex-col md:flex-row items-center gap-10 shadow-2xl text-left">
-          <div className="absolute right-10 top-1/2 -translate-y-1/2 opacity-[0.03] pointer-events-none">
-            <svg className="w-64 h-64" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 2.18l7 3.89v5.93c0 4.62-3 8.94-7 10-4-1.06-7-5.38-7-10V8.07l7-3.89z"/>
+        {/* LOGO & BRANDING FOR PDF EXPORT */}
+        <div className="flex items-center gap-4 mb-4 border-b border-white/10 pb-6">
+          <div className="w-12 h-12 rounded-2xl border border-yellow-400/30 flex items-center justify-center p-2">
+            <svg className="w-full h-full text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 2L3 7v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5zm0 2.18l7 3.89v5.93c0 4.62-3 8.94-7 10-4-1.06-7-5.38-7-10V8.07l7-3.89z"/>
             </svg>
           </div>
-
-          <div className="flex flex-col items-center flex-shrink-0 text-center relative z-10">
-            <div className="flex items-baseline gap-1">
-              <span className={`text-9xl font-black tracking-tighter leading-none ${getScoreColor()}`}>
-                {analysis.score.toFixed(1)}
-              </span>
-              <span className="text-3xl font-black text-gray-700 tracking-tighter">/10</span>
-            </div>
-            <p className="text-[10px] font-black text-gray-500 tracking-widest mt-2 uppercase">Boss score</p>
-          </div>
-
-          <div className="flex-1 space-y-6 relative z-10 text-left">
-            <div className="flex flex-wrap gap-3">
-              <div className="px-5 py-1.5 rounded-xl border border-yellow-400/30 bg-yellow-400/5 text-yellow-400 text-[10px] font-black tracking-wider">
-                {analysis.rating || "Fair"}
-              </div>
-              <div className="px-5 py-1.5 rounded-xl border border-white/10 bg-white/5 text-gray-400 text-[10px] font-black tracking-wider">
-                {analysis.type || "Commercial Package Policy"}
-              </div>
-            </div>
-            <div className="pl-6 border-l-4 border-yellow-400">
-              <p className="text-white text-2xl md:text-3xl font-bold leading-tight tracking-tight">
-                "{analysis.summary}"
-              </p>
-            </div>
+          <div>
+            <h1 className="text-2xl font-black tracking-tighter uppercase leading-none">The Insurance Boss</h1>
+            <p className="text-[10px] text-yellow-400 font-black tracking-[0.3em] uppercase mt-1">Authority Policy Audit</p>
           </div>
         </div>
 
-        {/* INSURED DETAILS CARD */}
-        <div className="lg:col-span-4 bg-black/40 backdrop-blur-2xl rounded-[3rem] p-10 border border-white/10 relative overflow-hidden flex flex-col shadow-2xl text-left">
-          <div className="absolute left-0 top-10 bottom-10 w-1.5 bg-yellow-400 rounded-full" />
-          <h3 className="text-[10px] font-black text-gray-500 tracking-widest mb-10 uppercase">Insured details</h3>
-          <div className="space-y-8 flex-1 flex flex-col justify-center">
-            <DetailItem label="Company name" value={analysis.insuredName} large highlight />
-            <DetailItem label="Policy number" value={analysis.policyNumber || "Not Found"} highlight />
-            <div className="grid grid-cols-2 gap-4">
-              <DetailItem label="Effective" value={analysis.effectiveDate || "N/A"} />
-              <DetailItem label="Expires" value={analysis.expirationDate || "N/A"} />
-            </div>
-            <DetailItem label="Location address" value={analysis.insuredAddress || "See Policy Documents"} />
-          </div>
-        </div>
-      </div>
-
-      {/* SECTION 2: MIDDLE ROW (COVERAGE ANALYSIS & EXCLUSIONS) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 text-left">
-        <div className="bg-black/40 backdrop-blur-2xl rounded-[2.5rem] p-10 border border-white/10 space-y-8 h-full shadow-xl">
-          <div className="flex items-center gap-4 text-left">
-            <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center text-yellow-400 border border-white/10">
-               <ShieldIcon />
-            </div>
-            <h3 className="text-xl font-black tracking-tighter text-white">Coverage analysis</h3>
-          </div>
-          <p className="text-gray-400 text-lg font-semibold leading-relaxed">
-            {analysis.coverageAnalysis}
-          </p>
-        </div>
-
-        <div className="bg-black/40 backdrop-blur-2xl rounded-[2.5rem] p-10 border border-white/10 space-y-10 h-full shadow-xl text-left">
-          <h3 className="text-xl font-black tracking-tighter text-red-500">Exclusions</h3>
-          <ul className="space-y-4">
-            {analysis.foundExclusions?.map((ex, i) => (
-              <li key={i} className="flex items-center gap-4 group">
-                <div className="flex-shrink-0 text-red-500">
-                  <XIcon />
-                </div>
-                <span className="text-gray-400 text-base font-bold tracking-tight group-hover:text-red-400 transition-colors leading-none">
-                  {ex}
+        {/* SECTION 1: TOP HEADER (SUMMARY & INSURED DETAILS) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          
+          {/* SUMMARY & SCORE CARD */}
+          <div className="lg:col-span-8 bg-[#111] rounded-[3rem] p-10 border border-white/10 relative overflow-hidden flex flex-col md:flex-row items-center gap-10 shadow-2xl text-left">
+            <div className="flex flex-col items-center flex-shrink-0 text-center relative z-10">
+              <div className="flex items-baseline gap-1">
+                <span className={`text-9xl font-black tracking-tighter leading-none ${getScoreColor()}`}>
+                  {analysis.score.toFixed(1)}
                 </span>
-              </li>
-            ))}
-            {(!analysis.foundExclusions || analysis.foundExclusions.length === 0) && (
-              <li className="text-gray-600 font-bold tracking-widest text-[10px]">No critical exclusions detected in scan.</li>
-            )}
-          </ul>
+                <span className="text-3xl font-black text-gray-700 tracking-tighter">/10</span>
+              </div>
+              <p className="text-[10px] font-black text-gray-500 tracking-widest mt-2 uppercase">Boss score</p>
+            </div>
+
+            <div className="flex-1 space-y-6 relative z-10 text-left">
+              <div className="flex flex-wrap gap-3">
+                <div className="px-5 py-1.5 rounded-xl border border-yellow-400/30 bg-yellow-400/5 text-yellow-400 text-[10px] font-black tracking-wider">
+                  {analysis.rating || "Fair"}
+                </div>
+                <div className="px-5 py-1.5 rounded-xl border border-white/10 bg-white/5 text-gray-400 text-[10px] font-black tracking-wider">
+                  {analysis.type || "Commercial Package"}
+                </div>
+              </div>
+              <div className="pl-6 border-l-4 border-yellow-400">
+                <p className="text-white text-2xl md:text-3xl font-bold leading-tight tracking-tight">
+                  "{analysis.summary}"
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* INSURED DETAILS CARD */}
+          <div className="lg:col-span-4 bg-[#111] rounded-[3rem] p-10 border border-white/10 relative overflow-hidden flex flex-col shadow-2xl text-left">
+            <h3 className="text-[10px] font-black text-gray-500 tracking-widest mb-6 uppercase">Audit details</h3>
+            <div className="space-y-6 flex-1 flex flex-col justify-center">
+              <DetailItem label="Company / Insured" value={analysis.insuredName} large highlight />
+              <DetailItem label="DBA" value={analysis.dba || "Not found"} />
+              <DetailItem label="FEIN / EIN" value={analysis.fein || "Not found"} />
+              <DetailItem label="Policy number" value={analysis.policyNumber || "Not found"} highlight />
+              <div className="grid grid-cols-2 gap-4">
+                <DetailItem label="Effective" value={analysis.effectiveDate || "N/A"} />
+                <DetailItem label="Expires" value={analysis.expirationDate || "N/A"} />
+              </div>
+              <DetailItem label="Risk Location" value={analysis.insuredAddress || "See Policy"} />
+            </div>
+          </div>
+        </div>
+
+        {/* SECTION 2: MIDDLE ROW (COVERAGE ANALYSIS & EXCLUSIONS) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 text-left">
+          <div className="bg-[#111] rounded-[2.5rem] p-10 border border-white/10 space-y-8 h-full shadow-xl">
+            <div className="flex items-center gap-4 text-left">
+              <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center text-yellow-400 border border-white/10">
+                 <ShieldIcon />
+              </div>
+              <h3 className="text-xl font-black tracking-tighter text-white">Coverage analysis</h3>
+            </div>
+            <p className="text-gray-400 text-lg font-semibold leading-relaxed">
+              {analysis.coverageAnalysis}
+            </p>
+          </div>
+
+          <div className="bg-[#111] rounded-[2.5rem] p-10 border border-white/10 space-y-10 h-full shadow-xl text-left">
+            <h3 className="text-xl font-black tracking-tighter text-red-500">Critical Exclusions</h3>
+            <ul className="space-y-4">
+              {analysis.foundExclusions?.map((ex, i) => (
+                <li key={i} className="flex items-center gap-4 group">
+                  <div className="flex-shrink-0 text-red-500">
+                    <XIcon />
+                  </div>
+                  <span className="text-gray-400 text-base font-bold tracking-tight leading-none">
+                    {ex}
+                  </span>
+                </li>
+              ))}
+              {(!analysis.foundExclusions || analysis.foundExclusions.length === 0) && (
+                <li className="text-gray-600 font-bold tracking-widest text-[10px]">No critical exclusions detected.</li>
+              )}
+            </ul>
+          </div>
+        </div>
+
+        {/* SECTION 3: BOTTOM ROW (STRENGTHS, RED FLAGS, RECOMMENDATIONS) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-left">
+          <ColumnCard 
+            title="Strengths" 
+            color="green" 
+            icon={<CheckIcon />} 
+            items={analysis.strengths} 
+          />
+          <ColumnCard 
+            title="Red flags" 
+            color="red" 
+            icon={<XIcon />} 
+            items={analysis.redFlags} 
+          />
+          <ColumnCard 
+            title="Recommendations" 
+            color="yellow" 
+            icon={<ArrowIcon />} 
+            items={analysis.recommendations} 
+          />
         </div>
       </div>
 
-      {/* SECTION 3: BOTTOM ROW (STRENGTHS, RED FLAGS, RECOMMENDATIONS) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-left">
-        <ColumnCard 
-          title="Strengths" 
-          color="green" 
-          icon={<CheckIcon />} 
-          items={analysis.strengths} 
-        />
-        <ColumnCard 
-          title="Red flags" 
-          color="red" 
-          icon={<XIcon />} 
-          items={analysis.redFlags} 
-        />
-        <ColumnCard 
-          title="Recommendations" 
-          color="yellow" 
-          icon={<ArrowIcon />} 
-          items={analysis.recommendations} 
-        />
-      </div>
-
-      {/* ACTION BAR */}
+      {/* ACTION BAR (Excluded from PDF) */}
       <div className="pt-10 flex flex-col md:flex-row justify-between items-center gap-6 border-t border-white/10 text-left">
         <button 
           onClick={onReset} 
@@ -146,6 +183,18 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysis, onReset, onOp
           New audit
         </button>
         <div className="flex gap-4">
+          <button 
+            disabled={isGeneratingPdf}
+            onClick={handleDownloadPDF} 
+            className="bg-white/5 border border-white/10 text-white px-10 py-5 rounded-2xl font-black text-xs tracking-wider hover:bg-white/10 transition-all active:scale-95 flex items-center gap-3 uppercase"
+          >
+            {isGeneratingPdf ? (
+              <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+            ) : (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+            )}
+            Download results (PDF)
+          </button>
           <button 
             onClick={handleConsultExpert} 
             className="bg-yellow-400 text-black px-12 py-5 rounded-2xl font-black text-xs tracking-wider hover:bg-yellow-500 transition-all shadow-xl active:scale-95 flex items-center gap-3 uppercase"
@@ -159,9 +208,9 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysis, onReset, onOp
 };
 
 const DetailItem: React.FC<{ label: string; value: string; large?: boolean; highlight?: boolean }> = ({ label, value, large, highlight }) => (
-  <div className="space-y-1.5 text-left">
+  <div className="space-y-1 text-left">
     <p className="text-[9px] font-black text-gray-500 tracking-widest uppercase">{label}</p>
-    <p className={`font-black tracking-tight leading-none ${large ? 'text-2xl' : 'text-base'} ${highlight ? 'text-yellow-400' : 'text-white'}`}>
+    <p className={`font-black tracking-tight leading-tight ${large ? 'text-2xl' : 'text-base'} ${highlight ? 'text-yellow-400' : 'text-white'}`}>
       {value}
     </p>
   </div>
@@ -175,7 +224,7 @@ const ColumnCard: React.FC<{ title: string; color: 'green' | 'red' | 'yellow'; i
   };
 
   return (
-    <div className="bg-black/40 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-10 space-y-10 flex flex-col h-full shadow-lg text-left">
+    <div className="bg-[#111] border border-white/10 rounded-[2.5rem] p-10 space-y-8 flex flex-col h-full shadow-lg text-left">
       <h3 className={`text-xl font-black tracking-tighter ${titleColor[color]}`}>{title}</h3>
       <ul className="space-y-6 flex-1 text-left">
         {items.map((item, i) => (
@@ -183,9 +232,10 @@ const ColumnCard: React.FC<{ title: string; color: 'green' | 'red' | 'yellow'; i
             <div className={`mt-1 flex-shrink-0 ${titleColor[color]}`}>
               {icon}
             </div>
-            <p className="text-gray-400 text-base font-bold leading-relaxed group-hover:text-white transition-colors tracking-tight">{item}</p>
+            <p className="text-gray-400 text-base font-bold leading-relaxed tracking-tight">{item}</p>
           </li>
         ))}
+        {(!items || items.length === 0) && <li className="text-gray-600 font-bold italic text-xs uppercase">No items found.</li>}
       </ul>
     </div>
   );

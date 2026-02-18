@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import Header from './components/Header';
@@ -14,7 +13,6 @@ import { bossServer } from './services/serverService';
 
 const { HashRouter, Routes, Route } = ReactRouterDOM;
 
-// Wrapper to handle main app view states - strictly unmounts protected content
 const MainView: React.FC<{
   isUnlocked: boolean,
   onUnlock: () => void,
@@ -22,7 +20,7 @@ const MainView: React.FC<{
   setShowWizard: (v: boolean) => void,
   allPolicies: PolicyAnalysis[],
   currentAnalysis: PolicyAnalysis | null,
-  handleNewAnalysis: (a: PolicyAnalysis, details: {name: string, email: string}) => void,
+  handleNewAnalysis: (a: PolicyAnalysis) => void,
   handleNewLead: (l: QuoteRequest) => void,
   handleNewPremiumRequest: (r: PremiumRequest) => void,
   setCurrentAnalysis: (a: PolicyAnalysis | null) => void,
@@ -31,12 +29,10 @@ const MainView: React.FC<{
   isAdmin?: boolean;
 }> = ({ isUnlocked, onUnlock, showWizard, setShowWizard, allPolicies, currentAnalysis, handleNewAnalysis, handleNewLead, handleNewPremiumRequest, setCurrentAnalysis, onReset, auditCount, isAdmin }) => {
   
-  // Gatekeeper: MANDATORY ENTRY POINT
   if (!isUnlocked) {
     return <Gatekeeper onUnlock={onUnlock} />;
   }
 
-  // PROTECTED CONTENT: Only mounted after successful verification
   if (showWizard) {
     return <WizardForm onSubmit={handleNewLead} onCancel={onReset} />;
   }
@@ -77,7 +73,6 @@ const App: React.FC = () => {
   const [auditCount, setAuditCount] = useState(0);
 
   useEffect(() => {
-    // Session-based locking protocol
     const unlocked = sessionStorage.getItem('boss_tool_unlocked') === 'true';
     setIsUnlocked(unlocked);
 
@@ -118,7 +113,6 @@ const App: React.FC = () => {
   const handleUnlock = () => {
     setIsUnlocked(true);
     sessionStorage.setItem('boss_tool_unlocked', 'true');
-    // Simplified CINEMATIC hand-off logic
   };
 
   const lockApp = () => {
@@ -129,7 +123,6 @@ const App: React.FC = () => {
   };
 
   const handleGoHome = () => {
-    // Protocol requires re-locking on home return
     lockApp();
     window.location.hash = '#/';
   };
@@ -138,16 +131,14 @@ const App: React.FC = () => {
     lockApp();
   };
 
-  const handleNewAnalysis = async (analysis: PolicyAnalysis, details: {name: string, email: string}) => {
+  const handleNewAnalysis = async (analysis: PolicyAnalysis) => {
     const newCount = auditCount + 1;
     setAuditCount(newCount);
     sessionStorage.setItem('boss_audit_count', newCount.toString());
 
-    // IMMEDIATE UI UPDATE: Show analysis first, background tasks later
     setCurrentAnalysis(analysis);
     setShowWizard(false);
 
-    // DECOUPLE BACKEND TASKS: Parallel execution without awaiting
     Promise.allSettled([
       storage.savePolicy(analysis),
       bossServer.upstream('policy', analysis)
@@ -162,22 +153,24 @@ const App: React.FC = () => {
       id: `auto-${analysis.id}`,
       submissionDate: new Date().toLocaleString(),
       status: 'New',
-      businessName: analysis.insuredName || details.name,
-      fein: analysis.fein || 'EXTRACTED',
-      yearsInBusiness: 'EXTRACTED',
-      address1: analysis.insuredAddress || '',
-      city: 'EXTRACTED',
-      state: 'EXTRACTED',
-      zip: 'EXTRACTED',
+      businessName: analysis.insuredName !== 'Not found' ? analysis.insuredName : 'Not found',
+      dba: analysis.dba || 'Not found',
+      fein: analysis.fein || 'Not found',
+      yearsInBusiness: analysis.yearsInBusiness || 'Not found',
+      address1: analysis.insuredAddress || 'Not found',
+      city: analysis.ezlynxData?.client_city || 'Not found',
+      state: analysis.ezlynxData?.client_state || 'Not found',
+      zip: analysis.ezlynxData?.client_zip || 'Not found',
       country: 'United States',
-      industries: analysis.industry ? [analysis.industry] : ['Policy Audit'],
+      industries: analysis.industry && analysis.industry !== 'Not found' ? [analysis.industry] : ['Policy Audit'],
       hasActiveCoverage: true,
-      knowsPremium: !!analysis.premiumAmount,
+      knowsPremium: !!analysis.premiumAmount && analysis.premiumAmount !== 'Not found',
       hasDeclPage: true,
-      contactName: details.name || analysis.insuredName || 'Insured',
-      contactEmail: details.email || analysis.contactEmail || '',
-      contactPhone: analysis.contactPhone || '',
+      contactName: analysis.insuredName !== 'Not found' ? analysis.insuredName : 'Audit User',
+      contactEmail: analysis.contactEmail || 'Not provided',
+      contactPhone: analysis.contactPhone || 'Not provided',
       sourcePolicyId: analysis.id,
+      sourceFileData: analysis.fileData,
       extractedCoverage: analysis.summary
     };
 
@@ -189,7 +182,6 @@ const App: React.FC = () => {
       const filtered = prev.filter(l => l.id !== lead.id);
       return [lead, ...filtered];
     });
-    // Non-blocking save
     Promise.allSettled([
       storage.saveLead(lead),
       bossServer.upstream('lead', lead)

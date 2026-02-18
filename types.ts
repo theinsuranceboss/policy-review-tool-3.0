@@ -19,6 +19,9 @@ export interface PremiumRequest {
 }
 
 export interface EZLynxPayload {
+  full_name?: string | null;
+  email?: string | null;
+  phone?: string | null;
   client_name: string | null;
   client_email: string | null;
   client_phone: string | null;
@@ -30,6 +33,12 @@ export interface EZLynxPayload {
   current_premium: string | null;
   policy_type: string | null;
   expiration_date: string | null;
+  business_name?: string | null;
+  dba?: string | null;
+  fein_ein?: string | null;
+  years_in_business?: string | null;
+  policy_file?: string | null;
+  policy_filename?: string | null;
 }
 
 export interface PolicyAnalysis {
@@ -41,10 +50,12 @@ export interface PolicyAnalysis {
   score: number; // 0 to 10
   insuredName: string;
   insuredAddress: string;
+  dba?: string;
+  fein?: string;
+  yearsInBusiness?: string;
   contactEmail?: string;
   contactPhone?: string;
   industry?: string;
-  fein?: string;
   carrierName?: string;
   premiumAmount?: string;
   policyNumber: string;
@@ -94,6 +105,7 @@ export interface QuoteRequest {
   isVerified?: boolean;
   extractedCoverage?: string;
   sourcePolicyId?: string;
+  sourceFileData?: string;
 }
 
 export interface AdminStats {

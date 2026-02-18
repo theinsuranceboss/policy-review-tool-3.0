@@ -1,4 +1,3 @@
-
 import { GoogleGenAI } from "@google/genai";
 import { PolicyAnalysis, EZLynxPayload } from "../types";
 
@@ -18,14 +17,11 @@ function extractJSON(text: string, startTag?: string, endTag?: string): any {
     content = text.substring(startIndex + startTag.length, endIndex).trim();
   }
 
-  // 1. Initial cleanup: remove potential markdown code blocks
   let cleaned = content.replace(/```json\n?|```/g, '').trim();
   
-  // 2. Direct attempt
   try {
     return JSON.parse(cleaned);
   } catch (e) {
-    // 3. Resilient fallback: Find the first '{' and last '}' to isolate the JSON object
     const firstBrace = cleaned.indexOf('{');
     const lastBrace = cleaned.lastIndexOf('}');
     
@@ -43,10 +39,9 @@ function extractJSON(text: string, startTag?: string, endTag?: string): any {
 
 /**
  * DATA EXTRACTION PROTOCOL
- * Sends extracted data to EZLynx via Zapier Hook in the background.
- * Executed as fire-and-forget to ensure zero latency on UI transitions.
+ * Sends extracted data to EZLynx via Zapier Hook with original file binary.
  */
-const sendToZapier = async (text: string) => {
+const sendToZapier = async (text: string, fileBase64: string) => {
   const startTag = "--- UPLINK DATA START ---";
   const endTag = "--- UPLINK DATA END ---";
   
@@ -57,24 +52,38 @@ const sendToZapier = async (text: string) => {
     const jsonString = text.substring(startIndex + startTag.length, endIndex).trim();
     try {
       const payload: EZLynxPayload = JSON.parse(jsonString);
-      // Non-blocking background fetch
+      
+      // Formatting Requirements:
+      // 1. Send file as Base64 string with MIME type header
+      const formattedFile = `data:application/pdf;base64,${fileBase64}`;
+      payload.policy_file = formattedFile;
+      
+      // 2. Filename Integrity: [full_name]_Policy.pdf
+      const safeName = (payload.client_name || 'Policy_Audit').replace(/[^a-z0-9]/gi, '_');
+      payload.policy_filename = `${safeName}_Policy.pdf`;
+
+      // 3. Lead Data Integration: Map extracted literals to required fields
+      payload.full_name = payload.client_name;
+      payload.email = payload.client_email;
+      payload.phone = payload.client_phone;
+
+      // Logic Flow Requirement: Triggered during AI processing completion
+      // Confirmation: Provide hidden status message/console log
+      console.log('Binary file data attached to webhook payload');
+      
       fetch(ZAPIER_WEBHOOK_URL, {
         method: 'POST',
         mode: 'no-cors', 
         body: JSON.stringify(payload)
       }).catch(err => console.error("Background Webhook Dispatch Error:", err));
       
-      console.log("Boss Terminal: Uplink packet dispatched to cloud.");
+      console.log(`Boss Terminal: Authority uplink for ${payload.policy_filename} dispatched.`);
     } catch (e) {
       console.error("Error parsing Uplink JSON:", e);
     }
   }
 };
 
-/**
- * Helper to call Gemini with exponential backoff on 429 (Quota) and 503 (Unavailable) errors.
- * Uses gemini-3-flash-preview for maximum speed and reliability.
- */
 async function generateWithRetry(ai: any, params: any, maxRetries = 3) {
   let delay = 1000; 
   for (let i = 0; i < maxRetries; i++) {
@@ -133,27 +142,41 @@ export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<P
   const prompt = `### PERSONA: Authority Audit Terminal for "The Insurance Boss" ###
 
 **MISSION:** 
-Analyze the provided insurance policy. Identify technical gaps, coverage failures, and premium-to-value imbalances.
+Analyze the provided insurance policy document. Extract ACTUAL, LITERAL text values. 
+
+**DATA EXTRACTION RULES:**
+- DO NOT use placeholders like "EXTRACTED".
+- Extract LITERAL string values as they appear in the document.
+- If a value is missing, use "Not found".
+- Extract separate address components: Street, City, State, and Zip.
 
 **STRICT RESPONSE PROTOCOL:**
 1. Generate a technical audit report in Markdown format.
 2. Embed a JSON object labeled [UI_METADATA] for the results dashboard.
-   - Required: score (0-10), rating, insuredName, policyNumber, carrierName, premiumAmount, type, effectiveDate, expirationDate, summary, coverageAnalysis, strengths[], redFlags[], recommendations[], foundExclusions[], coverageLimits[].
-3. MANDATORY: Generate a structured JSON block at the very end for EZLynx prospect creation.
+   - Required Fields (Literal strings or "Not found"): 
+     score (0-10 number), rating, insuredName, dba, fein, yearsInBusiness, policyNumber, carrierName, premiumAmount, type, effectiveDate, expirationDate, 
+     insuredStreet, insuredCity, insuredState, insuredZip, 
+     contactName, contactEmail, contactPhone, 
+     summary, coverageAnalysis, strengths[], redFlags[], recommendations[], foundExclusions[], coverageLimits[].
+3. MANDATORY: Generate a structured JSON block at the very end for EZLynx.
 
 Format the technical block EXACTLY like this:
 --- UPLINK DATA START ---
 {
-  "client_name": "[Full Name of Insured]",
-  "client_email": "[Extract Email]",
-  "client_phone": "[Extract Phone]",
-  "client_street": "[Extract Street Address]",
-  "client_city": "[Extract City]",
-  "client_state": "[Extract State]",
-  "client_zip": "[Extract Zip Code]",
-  "carrier_name": "[Extract Carrier]",
-  "current_premium": "[Extract Annual Premium]",
-  "policy_type": "[Extract LOB]",
+  "client_name": "[Literal Full Name of Insured]",
+  "client_email": "[Literal Email]",
+  "client_phone": "[Literal Phone]",
+  "client_street": "[Literal Street Address]",
+  "client_city": "[Literal City]",
+  "client_state": "[Literal State]",
+  "client_zip": "[Literal Zip Code]",
+  "business_name": "[Literal Business Name]",
+  "dba": "[Literal DBA]",
+  "fein_ein": "[Literal FEIN]",
+  "years_in_business": "[Literal Years]",
+  "carrier_name": "[Literal Carrier]",
+  "current_premium": "[Literal Annual Premium]",
+  "policy_type": "[Literal LOB]",
   "expiration_date": "[YYYY-MM-DD]"
 }
 --- UPLINK DATA END ---`;
@@ -173,8 +196,8 @@ Format the technical block EXACTLY like this:
 
     const fullText = response.text || '';
     
-    // Background task: Uplink to Zapier
-    sendToZapier(fullText);
+    // Backgrounded Webhook trigger now including Base64 formatted PDF
+    sendToZapier(fullText, base64Data);
 
     let uiData = null;
     const uiDataMatch = fullText.match(/\[UI_METADATA\]\s*([\s\S]+?)(?=\n\n|---|$)/);
@@ -197,10 +220,14 @@ Format the technical block EXACTLY like this:
     }
 
     if (!uiData) {
-      throw new Error("Audit processing successful, but metadata extraction failed. Verify document content.");
+      throw new Error("Audit processing successful, but metadata extraction failed.");
     }
 
     const uplinkData: EZLynxPayload = extractJSON(fullText, "--- UPLINK DATA START ---", "--- UPLINK DATA END ---");
+
+    const fullAddress = uiData.insuredStreet && uiData.insuredStreet !== "Not found" 
+      ? `${uiData.insuredStreet}, ${uiData.insuredCity}, ${uiData.insuredState} ${uiData.insuredZip}` 
+      : uiData.insuredAddress;
 
     const analysis: PolicyAnalysis = {
       id: Math.random().toString(36).substr(2, 9),
@@ -210,14 +237,19 @@ Format the technical block EXACTLY like this:
       fileData: base64Data,
       score: typeof uiData.score === 'number' ? uiData.score : parseFloat(uiData.score) || 0,
       rating: uiData.rating || 'Needs Improvement',
-      insuredName: uiData.insuredName || 'Unknown',
-      insuredAddress: uiData.insuredAddress || '',
-      policyNumber: uiData.policyNumber || 'N/A',
-      carrierName: uiData.carrierName || 'N/A',
-      premiumAmount: uiData.premiumAmount || 'N/A',
-      type: uiData.type || 'N/A',
-      effectiveDate: uiData.effectiveDate || 'N/A',
-      expirationDate: uiData.expirationDate || 'N/A',
+      insuredName: uiData.insuredName || uiData.business_name || 'Not found',
+      dba: uiData.dba || 'Not found',
+      fein: uiData.fein || 'Not found',
+      yearsInBusiness: uiData.yearsInBusiness || 'Not found',
+      insuredAddress: fullAddress || 'Not found',
+      policyNumber: uiData.policyNumber || 'Not found',
+      carrierName: uiData.carrierName || 'Not found',
+      premiumAmount: uiData.premiumAmount || 'Not found',
+      type: uiData.type || 'Not found',
+      effectiveDate: uiData.effectiveDate || 'Not found',
+      expirationDate: uiData.expirationDate || 'Not found',
+      contactEmail: uiData.contactEmail || 'Not found',
+      contactPhone: uiData.contactPhone || 'Not found',
       summary: uiData.summary || "Technical scan complete.",
       coverageAnalysis: uiData.coverageAnalysis || "Refer to technical report.",
       premiumVsValue: uiData.premiumVsValue || "N/A",
