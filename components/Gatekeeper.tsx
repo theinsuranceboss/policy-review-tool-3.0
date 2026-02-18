@@ -30,6 +30,7 @@ const Gatekeeper: React.FC<GatekeeperProps> = ({ onUnlock }) => {
     }
   };
 
+  // Type assertion for custom web component
   const ZapierEmbed = 'zapier-interfaces-page-embed' as any;
 
   if (showZapier) {
@@ -44,12 +45,29 @@ const Gatekeeper: React.FC<GatekeeperProps> = ({ onUnlock }) => {
               </svg>
             </button>
           </div>
-          <div className="rounded-2xl overflow-hidden bg-black border border-white/5">
+          
+          <div className="rounded-2xl overflow-hidden bg-black border border-white/5 min-h-[500px]">
+            {/* 
+              Zapier Interface Web Component with Iframe Fallback 
+              Page ID updated to requested: cmllbos3g00467w2a9w8nmrfu
+            */}
             <ZapierEmbed 
-              page-id='cmllbos3g00447w2a9w8nmrfu' 
-              style={{ maxWidth: '100%', height: '550px', display: 'block', backgroundColor: '#000000' }}
-            />
+              page-id='cmllbos3g00467w2a9w8nmrfu' 
+              no-background='false' 
+              style={{ maxWidth: '100%', height: '500px', display: 'block', margin: '0 auto' }}
+            >
+              <iframe 
+                src="https://interfaces.zapier.com/embed/page/cmllbos3g00467w2a9w8nmrfu" 
+                style={{ width: '100%', height: '500px', border: 'none' }}
+                sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
+                title="Zapier Authorization Request Fallback"
+              />
+            </ZapierEmbed>
           </div>
+          
+          <p className="mt-4 text-[9px] text-gray-600 font-bold uppercase tracking-widest text-center">
+            Authorized Connection via Zapier Gateway
+          </p>
         </div>
       </div>
     );
