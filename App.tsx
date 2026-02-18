@@ -13,7 +13,7 @@ import { bossServer } from './services/serverService';
 
 const { HashRouter, Routes, Route } = ReactRouterDOM;
 
-// Wrapper to handle main app view states
+// Wrapper to handle main app view states - strictly unmounts protected content
 const MainView: React.FC<{
   isUnlocked: boolean,
   onUnlock: () => void,
@@ -30,10 +30,12 @@ const MainView: React.FC<{
   isAdmin?: boolean;
 }> = ({ isUnlocked, onUnlock, showWizard, setShowWizard, allPolicies, currentAnalysis, handleNewAnalysis, handleNewLead, handleNewPremiumRequest, setCurrentAnalysis, onReset, auditCount, isAdmin }) => {
   
+  // Gatekeeper: MANDATORY ENTRY POINT
   if (!isUnlocked) {
     return <Gatekeeper onUnlock={onUnlock} />;
   }
 
+  // PROTECTED CONTENT: Only mounted after successful verification
   if (showWizard) {
     return <WizardForm onSubmit={handleNewLead} onCancel={onReset} />;
   }
@@ -74,11 +76,10 @@ const App: React.FC = () => {
   const [auditCount, setAuditCount] = useState(0);
 
   useEffect(() => {
-    // Check unlock status from session storage to ensure it re-locks on new browser session
+    // Session-based locking protocol
     const unlocked = sessionStorage.getItem('boss_tool_unlocked') === 'true';
     setIsUnlocked(unlocked);
 
-    // Load audit count from session storage
     const count = parseInt(sessionStorage.getItem('boss_audit_count') || '0', 10);
     setAuditCount(count);
 
@@ -107,7 +108,7 @@ const App: React.FC = () => {
         setRecycledPolicies(rp);
         setPremiumRequests(pr);
       } catch (err) {
-        console.error("Silent Sync Warning:", err);
+        console.error("Sync Notification:", err);
       }
     };
     loadData();
@@ -116,8 +117,8 @@ const App: React.FC = () => {
   const handleUnlock = () => {
     setIsUnlocked(true);
     sessionStorage.setItem('boss_tool_unlocked', 'true');
-    // Session Welcome Message - strictly following protocol wording
-    alert("Uplink established. Provide the policy document for immediate technical inspection. Identify gaps before they identify you.");
+    // Unified Cinematic Handshake
+    alert("Connection established. Authority verified. The terminal is now active for policy auditing.");
   };
 
   const lockApp = () => {
@@ -128,13 +129,12 @@ const App: React.FC = () => {
   };
 
   const handleGoHome = () => {
-    // Session Reset Protocol: Immediately revert to LOCKED status
+    // Protocol requires re-locking on home return
     lockApp();
     window.location.hash = '#/';
   };
 
   const handleNewSession = () => {
-    // Session Reset Protocol: Immediately revert to LOCKED status
     lockApp();
   };
 
@@ -154,7 +154,6 @@ const App: React.FC = () => {
       bossServer.upstream('policy', analysis);
     });
 
-    // Create a robust lead from the extracted analysis data
     const autoLead: QuoteRequest = {
       id: `auto-${analysis.id}`,
       submissionDate: new Date().toLocaleString(),
@@ -334,7 +333,7 @@ const App: React.FC = () => {
 
         {!isEmbedded && (
           <footer className="py-12 border-none text-center text-gray-500 text-sm bg-transparent">
-            <p>© {new Date().getFullYear()} The Insurance Boss Authority Audit.</p>
+            <p>© {new Date().getFullYear()} The Insurance Boss Authority Terminal.</p>
           </footer>
         )}
       </div>

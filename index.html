@@ -67,10 +67,9 @@
       }
     </style>
     <script>
-      // Global shim for process.env to satisfy library requirements and allow injection
+      // Global shim for process.env to satisfy library requirements
       window.process = window.process || { env: {} };
       window.process.env = window.process.env || {};
-      window.process.env.API_KEY = "AIzaSyDEnP3NMl5cnO1NWiTWvcAmPMupVCwTqzE";
       window.process.env.NODE_ENV = "production";
     </script>
   <script type="importmap">

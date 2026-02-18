@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState, useEffect } from 'react';
 import { PolicyAnalysis, AdminStats, QuoteRequest, PremiumUser, PremiumRequest } from '../types';
 import { bossServer } from '../services/serverService';
@@ -185,7 +184,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <tr key={p.id} className="hover:bg-white/[0.03] transition-colors group">
                     <td className="px-8 py-6">
                       <div className="text-sm font-bold text-white group-hover:text-yellow-400 transition-colors">{p.insuredName || 'N/A'}</div>
-                      <div className="text-[10px] text-gray-600 font-mono tracking-tighter truncate max-w-[150px] uppercase">Ref: {p.id}</div>
                     </td>
                     <td className="px-8 py-6">
                       <span className="inline-block px-3 py-1 rounded-lg bg-white/5 text-[10px] font-black text-gray-400 border border-white/5">{p.type || 'Standard'}</span>
@@ -533,7 +531,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <tr key={p.id} className="hover:bg-red-500/[0.03] transition-colors group">
                       <td className="px-8 py-6">
                         <div className="text-sm font-bold text-white">{p.insuredName}</div>
-                        <div className="text-[10px] text-gray-600 font-mono tracking-tighter uppercase">ID: {p.id}</div>
                       </td>
                       <td className="px-8 py-6">
                         <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest">{p.type}</span>

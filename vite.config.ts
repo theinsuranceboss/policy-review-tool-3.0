@@ -8,8 +8,6 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     define: {
-      // Explicitly injecting the key to ensure it's available as process.env.API_KEY in the browser
-      'process.env.API_KEY': JSON.stringify("AIzaSyDEnP3NMl5cnO1NWiTWvcAmPMupVCwTqzE"),
       'process.env.NODE_ENV': JSON.stringify(mode || 'production'),
     },
     build: {

@@ -37,15 +37,17 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
     setProgress(0);
     if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
 
-    const intervalSpeed = isFastTrack ? 10 : 100;
+    // Optimized speed for Paid Tier experience
+    const intervalSpeed = isFastTrack ? 10 : 40; 
 
     progressIntervalRef.current = window.setInterval(() => {
       setProgress(prev => {
-        if (prev >= 98) {
-          if (!isFastTrack) return 98;
+        if (prev >= 99) {
+          if (!isFastTrack) return 99;
           return 100;
         }
-        const increment = isFastTrack ? 15 : (prev < 40 ? 3 : prev < 70 ? 0.8 : 0.2);
+        // More aggressive increments to match the paid API performance
+        const increment = isFastTrack ? 15 : (prev < 40 ? 5 : prev < 75 ? 2 : 0.5);
         return Math.min(prev + increment, 100);
       });
     }, intervalSpeed);
@@ -75,7 +77,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
 
       if (existingMatch) {
         startProgressSimulation(true); 
-        await new Promise(r => setTimeout(r, 800)); 
+        await new Promise(r => setTimeout(r, 400)); 
         if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
         setProgress(100);
         setTimeout(() => {
@@ -103,7 +105,9 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
       setIsUploading(false);
       setProgress(0);
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-      alert(err.message || "Unknown error occurred on Boss Central Engine.");
+      
+      const errorMessage = err.message || "Unknown error occurred on Boss Central Engine.";
+      alert(errorMessage);
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
     }

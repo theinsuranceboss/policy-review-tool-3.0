@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import { PolicyAnalysis } from '../types';
 
 interface AnalysisResultProps {
@@ -10,7 +10,6 @@ interface AnalysisResultProps {
 
 const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysis, onReset, onOpenWizard, isAdmin }) => {
   const dashboardRef = useRef<HTMLDivElement>(null);
-  const [showTechnical, setShowTechnical] = useState(false);
 
   const handleConsultExpert = () => {
     window.open('https://theinsuranceboss.com/contact/', '_blank');
@@ -79,35 +78,6 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysis, onReset, onOp
         </div>
       </div>
 
-      {/* TECH DATA TOGGLE - Restricted to Staff Access */}
-      {isAdmin && analysis.ezlynxData && (
-        <div className="bg-black/40 backdrop-blur-2xl rounded-[2.5rem] border border-blue-400/20 overflow-hidden shadow-xl text-left">
-          <button 
-            onClick={() => setShowTechnical(!showTechnical)}
-            className="w-full px-10 py-6 flex items-center justify-between hover:bg-white/5 transition-colors"
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-400 border border-blue-500/20">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
-              </div>
-              <div>
-                <h3 className="text-lg font-black tracking-tighter text-white uppercase">Staff: Technical Data Extraction</h3>
-                <p className="text-[9px] text-blue-400 font-bold uppercase tracking-widest">Status: Ready for EZLynx Uplink (Staff Only)</p>
-              </div>
-            </div>
-            <svg className={`w-6 h-6 text-gray-500 transition-transform ${showTechnical ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
-          </button>
-          
-          {showTechnical && (
-            <div className="p-10 bg-black/60 border-t border-white/5 animate-in slide-in-from-top-4 duration-500">
-               <pre className="text-[11px] font-mono text-blue-300 leading-relaxed overflow-x-auto whitespace-pre-wrap max-h-[400px] custom-scrollbar">
-                 {JSON.stringify(analysis.ezlynxData, null, 2)}
-               </pre>
-            </div>
-          )}
-        </div>
-      )}
-
       {/* SECTION 2: MIDDLE ROW (COVERAGE ANALYSIS & EXCLUSIONS) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 text-left">
         <div className="bg-black/40 backdrop-blur-2xl rounded-[2.5rem] p-10 border border-white/10 space-y-8 h-full shadow-xl">
@@ -162,11 +132,6 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysis, onReset, onOp
           icon={<ArrowIcon />} 
           items={analysis.recommendations} 
         />
-      </div>
-
-      {/* SYSTEM UPLINK DATA (HIDDEN) */}
-      <div style={{ display: 'none' }} id="system-uplink-block" aria-hidden="true">
-        {JSON.stringify(analysis.uplinkData || {})}
       </div>
 
       {/* ACTION BAR */}

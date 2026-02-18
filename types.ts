@@ -19,18 +19,17 @@ export interface PremiumRequest {
 }
 
 export interface EZLynxPayload {
-  client_first_name: string | null;
-  client_last_name: string | null;
+  client_name: string | null;
   client_email: string | null;
   client_phone: string | null;
-  client_address_street: string | null;
-  client_address_city: string | null;
-  client_address_state: string | null;
-  client_address_zip: string | null;
-  policy_carrier: string | null;
-  policy_number: string | null;
-  policy_lob_type: string | null;
-  cross_sell_flags: string[];
+  client_street: string | null;
+  client_city: string | null;
+  client_state: string | null;
+  client_zip: string | null;
+  carrier_name: string | null;
+  current_premium: string | null;
+  policy_type: string | null;
+  expiration_date: string | null;
 }
 
 export interface PolicyAnalysis {
@@ -64,13 +63,7 @@ export interface PolicyAnalysis {
   recommendations: string[];
   fileData?: string; 
   fileHash?: string;
-  uplinkData?: {
-    insured_name: string;
-    carrier: string;
-    premium: string;
-    policy_type: string;
-    expiration: string;
-  };
+  uplinkData?: EZLynxPayload;
   ezlynxData?: EZLynxPayload;
 }
 
