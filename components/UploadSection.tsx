@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { analyzePolicy, calculateFileHash } from '../services/geminiService';
 import { PolicyAnalysis, PremiumRequest } from '../types';
@@ -13,12 +14,17 @@ interface UploadSectionProps {
 const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, existingPolicies, onOpenWizard, onPremiumRequest, auditCount }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [hasApiKey, setHasApiKey] = useState(true);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const progressIntervalRef = useRef<number | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
+    // Check if API key is available
+    if (!process.env.API_KEY || process.env.API_KEY === '') {
+      setHasApiKey(false);
+    }
     return () => {
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
     };
@@ -37,18 +43,17 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
     setProgress(0);
     if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
 
-    // Optimized speed for Paid Tier experience
-    const intervalSpeed = isFastTrack ? 10 : 40; 
+    const intervalSpeed = isFastTrack ? 10 : 50; 
 
     progressIntervalRef.current = window.setInterval(() => {
       setProgress(prev => {
+        // Stop at 99% and wait for actual result to trigger 100%
         if (prev >= 99) {
           if (!isFastTrack) return 99;
           return 100;
         }
-        // More aggressive increments to match the paid API performance
-        const increment = isFastTrack ? 15 : (prev < 40 ? 5 : prev < 75 ? 2 : 0.5);
-        return Math.min(prev + increment, 100);
+        const increment = isFastTrack ? 15 : (prev < 40 ? 4 : prev < 75 ? 1.5 : 0.2);
+        return Math.min(prev + increment, 99);
       });
     }, intervalSpeed);
   };
@@ -56,6 +61,11 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (!hasApiKey) {
+      console.error("Configuration Error: API Key missing.");
+      return;
+    }
 
     setIsUploading(true);
     startProgressSimulation();
@@ -72,7 +82,6 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
       const fileHash = await calculateFileHash(base64Data);
       const existingMatch = existingPolicies.find(p => p.fileHash === fileHash);
 
-      // Default values since inputs are removed
       const userDetails = { name: 'Verified User', email: 'verified@user.terminal' };
 
       if (existingMatch) {
@@ -84,12 +93,14 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
           onAnalysisComplete(existingMatch, userDetails);
           setIsUploading(false);
           setProgress(0);
-        }, 300);
+        }, 200);
         return;
       }
 
+      // Block until analysis is returned, but webhook is backgrounded inside analyzePolicy
       const analysis = await analyzePolicy(file, abortControllerRef.current.signal);
       
+      // BREAK THE 99% LOOP: Force finish immediately
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       setProgress(100);
       
@@ -97,7 +108,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
         onAnalysisComplete(analysis, userDetails);
         setIsUploading(false);
         setProgress(0);
-      }, 500);
+      }, 300);
       
     } catch (err: any) {
       if (err.name === 'AbortError') return;
@@ -106,8 +117,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
       setProgress(0);
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       
-      const errorMessage = err.message || "Unknown error occurred on Boss Central Engine.";
-      alert(errorMessage);
+      alert(err.message || "Unknown error occurred on Boss Central Engine.");
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
@@ -128,12 +138,26 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
       </div>
 
       <div 
-        onClick={() => !isUploading && fileInputRef.current?.click()}
+        onClick={() => hasApiKey && !isUploading && fileInputRef.current?.click()}
         className={`w-full max-w-4xl min-h-[400px] rounded-[3.5rem] border border-white/10 flex flex-col items-center justify-center p-12 transition-all relative overflow-hidden bg-[#0d0d0d] shadow-2xl
-          ${!isUploading ? 'cursor-pointer hover:bg-white/[0.02] active:scale-[0.99] border-white/20' : 'opacity-80 cursor-default'}
+          ${hasApiKey && !isUploading ? 'cursor-pointer hover:bg-white/[0.02] active:scale-[0.99] border-white/20' : 'opacity-80 cursor-default'}
+          ${!hasApiKey ? 'grayscale opacity-50' : ''}
         `}
       >
         <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="application/pdf" />
+
+        {!hasApiKey && (
+          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm p-8 text-center">
+            <svg className="w-16 h-16 text-red-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <h3 className="text-xl font-black text-white uppercase tracking-widest mb-2">Engine Offline</h3>
+            <p className="text-gray-400 text-sm font-bold max-w-sm">
+              Boss Central Engine API Key is missing. <br />
+              <span className="text-yellow-400">Admin: Configure VITE_GEMINI_API_KEY in Netlify.</span>
+            </p>
+          </div>
+        )}
 
         {isUploading ? (
           <div className="w-full max-w-xl space-y-12 flex flex-col items-center animate-in fade-in zoom-in-95">
@@ -178,7 +202,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
         )}
       </div>
 
-      {!isUploading && (
+      {!isUploading && hasApiKey && (
         <div className="mt-12 flex flex-col items-center gap-8 w-full">
           <a 
             href="https://theinsuranceboss.com/get-a-quote/"

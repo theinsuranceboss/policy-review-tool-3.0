@@ -1,7 +1,9 @@
+
 import { GoogleGenAI } from "@google/genai";
 import { PolicyAnalysis, EZLynxPayload } from "../types";
 
-const ZAPIER_WEBHOOK_URL = "https://hooks.zapier.com/hooks/catch/25763261/uchujcq/";
+// Updated Zapier Webhook URL as requested
+const ZAPIER_WEBHOOK_URL = "https://hooks.zapier.com/hooks/catch/25763261/ucmftd7/";
 
 /**
  * Robustly extracts JSON from a string that might contain markdown, tags, or stray text.
@@ -43,7 +45,7 @@ function extractJSON(text: string, startTag?: string, endTag?: string): any {
 
 /**
  * DATA EXTRACTION PROTOCOL (MANDATORY)
- * Sends extracted data to EZLynx via Zapier Hook.
+ * Sends extracted data to EZLynx via Zapier Hook in the background.
  */
 const sendToZapier = async (text: string) => {
   const startTag = "--- UPLINK DATA START ---";
@@ -56,14 +58,16 @@ const sendToZapier = async (text: string) => {
     const jsonString = text.substring(startIndex + startTag.length, endIndex).trim();
     try {
       const payload: EZLynxPayload = JSON.parse(jsonString);
-      await fetch(ZAPIER_WEBHOOK_URL, {
+      // Fire and forget - do not await here to prevent UI blocking
+      fetch(ZAPIER_WEBHOOK_URL, {
         method: 'POST',
         mode: 'no-cors', 
         body: JSON.stringify(payload)
-      });
-      console.log("Uplink exitoso a EZLynx");
+      }).catch(err => console.error("Zapier Uplink Silent Error:", err));
+      
+      console.log("Uplink signal dispatched to Boss HQ");
     } catch (e) {
-      console.error("Error al parsear el JSON de la IA", e);
+      console.error("Error parsing Uplink JSON:", e);
     }
   }
 };
@@ -73,7 +77,7 @@ const sendToZapier = async (text: string) => {
  * Optimized for Paid Tier: Faster retries and less aggressive cooling periods.
  */
 async function generateWithRetry(ai: any, params: any, maxRetries = 3) {
-  let delay = 1500; // Optimized: Start with 1.5 seconds instead of 5
+  let delay = 1500; 
   for (let i = 0; i < maxRetries; i++) {
     try {
       return await ai.models.generateContent(params);
@@ -85,14 +89,10 @@ async function generateWithRetry(ai: any, params: any, maxRetries = 3) {
         error.status === 'RESOURCE_EXHAUSTED';
 
       if (isQuotaError && i < maxRetries - 1) {
-        // Reduced jitter for paid accounts to maintain throughput
         const jitter = Math.random() * 500;
         const finalDelay = delay + jitter;
-        
-        console.warn(`[Boss Engine] Temporary quota limit hit. Retrying in ${Math.round(finalDelay)}ms (Attempt ${i + 1}/${maxRetries})`);
-        
         await new Promise(resolve => setTimeout(resolve, finalDelay));
-        delay *= 2; // Standard backoff
+        delay *= 2; 
         continue;
       }
       throw error;
@@ -100,9 +100,6 @@ async function generateWithRetry(ai: any, params: any, maxRetries = 3) {
   }
 }
 
-/**
- * Calculates a SHA-256 hash of the file content for duplicate detection.
- */
 export const calculateFileHash = async (base64: string): Promise<string> => {
   const msgUint8 = new TextEncoder().encode(base64);
   const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
@@ -114,7 +111,12 @@ export const calculateFileHash = async (base64: string): Promise<string> => {
  * Deep scan of insurance policy using Gemini.
  */
 export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<PolicyAnalysis> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    throw new Error("AUTHORITY DENIED: Gemini API Key is missing. Please configure VITE_GEMINI_API_KEY in your environment.");
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
   
   if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
 
@@ -130,27 +132,27 @@ export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<P
   const prompt = `### PERSONA: Authority Audit Terminal for "The Insurance Boss" ###
 
 **MISSION:** 
-You are a high-precision cinematic underwriting engine. Your tone is technical, aggressive, and authoritative. Identify hidden gaps and coverage failures.
+Analyze the provided insurance policy. Identify hidden gaps and coverage failures.
 
 **STRICT RESPONSE PROTOCOL:**
-1. Generate a deep cinematic technical audit report in Markdown format.
-2. Embed a JSON object labeled [UI_METADATA] for the local dashboard. 
-   - MUST include: score (number 0-10), rating (string), insuredName (string), policyNumber (string), carrierName (string), premiumAmount (string), type (string), effectiveDate (string), expirationDate (string), summary (string), coverageAnalysis (string), strengths (string[]), redFlags (string[]), recommendations (string[]), foundExclusions (string[]), coverageLimits ({label: string, limit: string}[]).
-3. MANDATORY: After completing the cinematic audit, you MUST generate a structured JSON data block at the very end of your response for the technical uplink to EZLynx.
+1. Generate a technical audit report in Markdown format.
+2. Embed a JSON object labeled [UI_METADATA] for the dashboard.
+   - MUST include: score (0-10), rating, insuredName, policyNumber, carrierName, premiumAmount, type, effectiveDate, expirationDate, summary, coverageAnalysis, strengths[], redFlags[], recommendations[], foundExclusions[], coverageLimits[].
+3. MANDATORY: Generate a structured JSON block at the very end for EZLynx.
 
-Format the technical block EXACTLY like this (DATA EXTRACTION PROTOCOL):
+Format the technical block EXACTLY like this:
 --- UPLINK DATA START ---
 {
   "client_name": "[Full Name of Insured]",
-  "client_email": "[Extract Email if present]",
-  "client_phone": "[Extract Phone if present]",
+  "client_email": "[Extract Email]",
+  "client_phone": "[Extract Phone]",
   "client_street": "[Extract Street Address]",
   "client_city": "[Extract City]",
   "client_state": "[Extract State]",
   "client_zip": "[Extract Zip Code]",
-  "carrier_name": "[Extract Current Carrier Name]",
-  "current_premium": "[Extract Total Annual Premium]",
-  "policy_type": "[LOB: e.g., GL, WC, Auto, Home, etc.]",
+  "carrier_name": "[Extract Carrier]",
+  "current_premium": "[Extract Premium]",
+  "policy_type": "[LOB]",
   "expiration_date": "[YYYY-MM-DD]"
 }
 --- UPLINK DATA END ---`;
@@ -170,10 +172,9 @@ Format the technical block EXACTLY like this (DATA EXTRACTION PROTOCOL):
 
     const fullText = response.text || '';
     
-    // 1. Process technical uplink to Zapier
-    await sendToZapier(fullText);
+    // Process technical uplink in background to prevent UI blocking
+    sendToZapier(fullText);
 
-    // 2. Extract UI Metadata
     let uiData = null;
     const uiDataMatch = fullText.match(/\[UI_METADATA\]\s*([\s\S]+?)(?=\n\n|---|$)/);
     
@@ -195,10 +196,9 @@ Format the technical block EXACTLY like this (DATA EXTRACTION PROTOCOL):
     }
 
     if (!uiData) {
-      throw new Error("UI metadata extraction failed. The Boss Terminal was unable to process the audit results.");
+      throw new Error("Metadata extraction failed. Boss Central Engine response was incomplete.");
     }
 
-    // 3. Extract local copy of uplink data
     const uplinkData: EZLynxPayload = extractJSON(fullText, "--- UPLINK DATA START ---", "--- UPLINK DATA END ---");
 
     const analysis: PolicyAnalysis = {
@@ -217,7 +217,7 @@ Format the technical block EXACTLY like this (DATA EXTRACTION PROTOCOL):
       type: uiData.type || 'N/A',
       effectiveDate: uiData.effectiveDate || 'N/A',
       expirationDate: uiData.expirationDate || 'N/A',
-      summary: uiData.summary || "Audit scan complete.",
+      summary: uiData.summary || "Audit complete.",
       coverageAnalysis: uiData.coverageAnalysis || "Refer to report.",
       premiumVsValue: uiData.premiumVsValue || "N/A",
       exclusions: uiData.exclusions || "N/A",
@@ -235,11 +235,6 @@ Format the technical block EXACTLY like this (DATA EXTRACTION PROTOCOL):
     return analysis;
   } catch (error: any) {
     if (error.name === 'AbortError') throw error;
-    
-    if (error.message?.includes('429') || error.message?.includes('RESOURCE_EXHAUSTED')) {
-      throw new Error("SYSTEM OVERLOAD: The Boss Authority Engine is seeing high traffic. Since you are on a paid tier, this should be transient. Please try again in a few moments.");
-    }
-
     throw new Error(error.message || "Unknown error occurred on Boss Central Engine.");
   }
 };

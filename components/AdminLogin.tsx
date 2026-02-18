@@ -12,8 +12,8 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Updated credentials as requested: bossadmin / admin
-    if (username === 'bossadmin' && password === 'admin') {
+    // Updated credentials: theinsuranceboss / admin
+    if (username === 'theinsuranceboss' && password === 'admin') {
       onLogin();
     } else {
       setError('Invalid admin credentials.');

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import Header from './components/Header';
@@ -117,8 +118,7 @@ const App: React.FC = () => {
   const handleUnlock = () => {
     setIsUnlocked(true);
     sessionStorage.setItem('boss_tool_unlocked', 'true');
-    // Unified Cinematic Handshake
-    alert("Connection established. Authority verified. The terminal is now active for policy auditing.");
+    // Simplified CINEMATIC hand-off logic
   };
 
   const lockApp = () => {
@@ -143,15 +143,19 @@ const App: React.FC = () => {
     setAuditCount(newCount);
     sessionStorage.setItem('boss_audit_count', newCount.toString());
 
+    // IMMEDIATE UI UPDATE: Show analysis first, background tasks later
     setCurrentAnalysis(analysis);
     setShowWizard(false);
 
-    storage.savePolicy(analysis).then(() => {
+    // DECOUPLE BACKEND TASKS: Parallel execution without awaiting
+    Promise.allSettled([
+      storage.savePolicy(analysis),
+      bossServer.upstream('policy', analysis)
+    ]).then(() => {
       setAllPolicies(prev => {
         const exists = prev.some(p => p.id === analysis.id);
         return exists ? prev : [analysis, ...prev];
       });
-      bossServer.upstream('policy', analysis);
     });
 
     const autoLead: QuoteRequest = {
@@ -185,8 +189,11 @@ const App: React.FC = () => {
       const filtered = prev.filter(l => l.id !== lead.id);
       return [lead, ...filtered];
     });
-    storage.saveLead(lead);
-    bossServer.upstream('lead', lead);
+    // Non-blocking save
+    Promise.allSettled([
+      storage.saveLead(lead),
+      bossServer.upstream('lead', lead)
+    ]);
   };
 
   const handleNewPremiumRequest = async (request: PremiumRequest) => {
