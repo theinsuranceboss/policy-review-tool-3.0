@@ -2,15 +2,14 @@ import { GoogleGenAI } from "@google/genai";
 import { PolicyAnalysis, EZLynxPayload } from "../types";
 
 const ZAPIER_WEBHOOK_URL = "https://hooks.zapier.com/hooks/catch/25763261/ucmftd7/";
-const ANALYSIS_TIMEOUT = 60000; // 60 seconds strict timeout for the AI generation
+const ANALYSIS_TIMEOUT = 60000; 
 
 /**
- * Retrieves the API key with strict priority for Vite environment variables.
+ * Strictly retrieves the API key from Vite/Netlify environment.
  */
 const getApiKey = (): string => {
-  // @ts-ignore - Strictly follow Netlify/Vite environment variable protocol
-  const key = import.meta.env?.VITE_GEMINI_API_KEY;
-  return key || "";
+  // @ts-ignore
+  return import.meta.env?.VITE_GEMINI_API_KEY || "";
 };
 
 /**
@@ -26,14 +25,11 @@ function extractJSON(text: string, startTag?: string, endTag?: string): any {
     content = text.substring(startIndex + startTag.length, endIndex).trim();
   }
 
-  // 1. Initial cleanup: remove potential markdown code blocks
   let cleaned = content.replace(/```json\n?|```/g, '').trim();
   
-  // 2. Direct attempt
   try {
     return JSON.parse(cleaned);
   } catch (e) {
-    // 3. Resilient fallback: Find the first '{' and last '}' to isolate the JSON object
     const firstBrace = cleaned.indexOf('{');
     const lastBrace = cleaned.lastIndexOf('}');
     
@@ -45,16 +41,13 @@ function extractJSON(text: string, startTag?: string, endTag?: string): any {
         console.error("Resilient JSON extraction failed.");
       }
     }
-    
-    console.error("JSON extraction failed for snippet:", cleaned.substring(0, 50));
     return null;
   }
 }
 
 /**
  * DATA EXTRACTION PROTOCOL (BACKGROUND UPLINK)
- * Sends extracted data to EZLynx via Zapier Hook.
- * Now non-blocking to prevent UI stalls.
+ * Dispatched without awaiting to ensure zero latency on the main thread.
  */
 const sendToZapier = async (text: string) => {
   const startTag = "--- UPLINK DATA START ---";
@@ -67,24 +60,21 @@ const sendToZapier = async (text: string) => {
     const jsonString = text.substring(startIndex + startTag.length, endIndex).trim();
     try {
       const payload: EZLynxPayload = JSON.parse(jsonString);
-      // Non-blocking fetch
+      // Fire and forget fetch
       fetch(ZAPIER_WEBHOOK_URL, {
         method: 'POST',
         mode: 'no-cors', 
         body: JSON.stringify(payload)
-      }).catch(err => console.error("Background Webhook Error:", err));
+      }).catch(err => console.error("Zapier Background Error:", err));
       
-      console.log("Uplink dispatched to Boss Central Gateway");
+      console.log("Boss Terminal: Uplink packet dispatched.");
     } catch (e) {
-      console.error("Error parsing AI JSON for Uplink", e);
+      console.error("Error parsing Uplink JSON:", e);
     }
   }
 };
 
-/**
- * Helper to call Gemini with minimal delay for Pay-as-you-go (Level 1).
- */
-async function generateWithRetry(ai: any, params: any, maxRetries = 3) {
+async function generateWithRetry(ai: any, params: any, maxRetries = 2) {
   let delay = 300; 
   for (let i = 0; i < maxRetries; i++) {
     try {
@@ -107,10 +97,8 @@ async function generateWithRetry(ai: any, params: any, maxRetries = 3) {
         error.status === 'RESOURCE_EXHAUSTED';
 
       if (isQuotaError && i < maxRetries - 1) {
-        const jitter = Math.random() * 100;
-        const finalDelay = delay + jitter;
-        await new Promise(resolve => setTimeout(resolve, finalDelay));
-        delay *= 1.5; 
+        await new Promise(resolve => setTimeout(resolve, delay + (Math.random() * 100)));
+        delay *= 2; 
         continue;
       }
       throw error;
@@ -128,7 +116,7 @@ export const calculateFileHash = async (base64: string): Promise<string> => {
 export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<PolicyAnalysis> => {
   const apiKey = getApiKey();
   if (!apiKey) {
-    throw new Error("AUTHORITY DENIED: Boss Central Engine API Key (VITE_GEMINI_API_KEY) is missing. Verify Netlify Environment Settings.");
+    throw new Error("AUTHORITY DENIED: VITE_GEMINI_API_KEY is missing from environment variables.");
   }
 
   const ai = new GoogleGenAI({ apiKey });
@@ -138,7 +126,7 @@ export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<P
   const base64Data = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
-    reader.onerror = () => reject(new Error("Failed to read policy document."));
+    reader.onerror = () => reject(new Error("Failed to read file"));
     reader.readAsDataURL(file);
   });
 
@@ -189,10 +177,9 @@ Format the technical block EXACTLY like this:
 
     const fullText = response.text || '';
     
-    // 1. Background Technical Uplink (NON-BLOCKING)
-    sendToZapier(fullText).catch(e => console.error("Silent Uplink Error:", e));
+    // DISPATCH BACKGROUND UPLINK IMMEDIATELY (NON-BLOCKING)
+    sendToZapier(fullText).catch(e => console.error("Background Webhook Error:", e));
 
-    // 2. Extract UI Metadata
     let uiData = null;
     const uiDataMatch = fullText.match(/\[UI_METADATA\]\s*([\s\S]+?)(?=\n\n|---|$)/);
     
@@ -214,7 +201,7 @@ Format the technical block EXACTLY like this:
     }
 
     if (!uiData) {
-      throw new Error("Audit failed to extract metadata. Check document format.");
+      throw new Error("Audit processing successful, but metadata extraction failed. Verify document contents.");
     }
 
     const uplinkData: EZLynxPayload = extractJSON(fullText, "--- UPLINK DATA START ---", "--- UPLINK DATA END ---");
@@ -253,9 +240,6 @@ Format the technical block EXACTLY like this:
     return analysis;
   } catch (error: any) {
     if (error.name === 'AbortError') throw error;
-    if (error.message === 'ANALYSIS_TIMEOUT') {
-      throw new Error("ANALYSIS_TIMEOUT: The document analysis is taking too long. Please retry with a shorter PDF.");
-    }
-    throw new Error(error.message || "Boss Central Engine Failure.");
+    throw new Error(error.message || "Boss Central Engine connection failure.");
   }
 };

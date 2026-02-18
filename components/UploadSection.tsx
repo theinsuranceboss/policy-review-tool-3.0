@@ -42,10 +42,9 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
 
     progressIntervalRef.current = window.setInterval(() => {
       setProgress(prev => {
-        // Stop the simulation just before 100 to wait for the real result
-        if (prev >= 98) {
-          if (!isFastTrack) return 98.5; 
-          return 100;
+        // Stall at 98.9 to wait for the real result
+        if (prev >= 98.9) {
+          return 98.9;
         }
         
         let increment = 0;
@@ -77,10 +76,8 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
     abortControllerRef.current = new AbortController();
 
     try {
-      // Default identity for audit
       const userDetails = { name: 'Verified Authority', email: 'verified@boss.terminal' };
 
-      // 1. Initial Processing
       const base64Data = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
@@ -97,27 +94,26 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
         analysis = existingMatch;
         startProgressSimulation(true); 
       } else {
-        // 2. AI Analysis Phase
+        // CALL ANALYSIS - BLOCKING FOR RESULT
         analysis = await analyzePolicy(file, abortControllerRef.current.signal);
         
-        // 3. Vault Commit Phase (MANDATORY BEFORE 100%)
-        try {
-          await storage.savePolicy(analysis);
-        } catch (dbErr) {
-          console.error("Vault Data Persistence Error (Logged but continuing):", dbErr);
-        }
+        // CONCURRENT NON-BLOCKING BACKGROUND TASKS (Vault Commit)
+        // We use Promise.allSettled to ensure background failures don't stall the UI
+        Promise.allSettled([
+          storage.savePolicy(analysis)
+        ]).then(() => console.log("Boss Terminal: Vault data secured in background."));
       }
 
-      // 4. Force Completion Phase
+      // IMMEDIATE COMPLETION TRIGGER
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       setProgress(100);
       
-      // Delay slightly for visual "finish" before switching
+      // Delay slightly for visual 100% then trigger view switch
       setTimeout(() => {
         onAnalysisComplete(analysis, userDetails);
         setIsUploading(false);
         setProgress(0);
-      }, 500);
+      }, 400);
       
     } catch (err: any) {
       if (err.name === 'AbortError') return;
