@@ -30,6 +30,8 @@ export interface EZLynxPayload {
   current_premium: string | null;
   policy_type: string | null;
   expiration_date: string | null;
+  policy_number?: string | null;
+  summary?: string | null;
 }
 
 export interface PolicyAnalysis {
