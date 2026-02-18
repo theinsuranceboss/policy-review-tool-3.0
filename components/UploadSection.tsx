@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { analyzePolicy, calculateFileHash } from '../services/geminiService';
 import { PolicyAnalysis, PremiumRequest } from '../types';
-import { storage } from '../services/storage';
 
 interface UploadSectionProps {
   onAnalysisComplete: (analysis: PolicyAnalysis, details: { name: string; email: string }) => void;
@@ -38,26 +37,18 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
     setProgress(0);
     if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
 
-    const intervalSpeed = isFastTrack ? 10 : 60; 
+    // Optimized speed for Paid Tier experience
+    const intervalSpeed = isFastTrack ? 10 : 40; 
 
     progressIntervalRef.current = window.setInterval(() => {
       setProgress(prev => {
-        // Stall at 98.9 to wait for the real result
-        if (prev >= 98.9) {
-          return 98.9;
+        if (prev >= 99) {
+          if (!isFastTrack) return 99;
+          return 100;
         }
-        
-        let increment = 0;
-        if (isFastTrack) {
-          increment = 20;
-        } else {
-          if (prev < 30) increment = 4;
-          else if (prev < 60) increment = 1.5;
-          else if (prev < 85) increment = 0.5;
-          else increment = 0.1;
-        }
-        
-        return Math.min(prev + increment, 98.9);
+        // More aggressive increments to match the paid API performance
+        const increment = isFastTrack ? 15 : (prev < 40 ? 5 : prev < 75 ? 2 : 0.5);
+        return Math.min(prev + increment, 100);
       });
     }, intervalSpeed);
   };
@@ -66,18 +57,11 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 15 * 1024 * 1024) {
-      alert("Policy Authority Alert: File exceeds 15MB limit.");
-      return;
-    }
-
     setIsUploading(true);
     startProgressSimulation();
     abortControllerRef.current = new AbortController();
 
     try {
-      const userDetails = { name: 'Verified Authority', email: 'verified@boss.terminal' };
-
       const base64Data = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
@@ -88,42 +72,42 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
       const fileHash = await calculateFileHash(base64Data);
       const existingMatch = existingPolicies.find(p => p.fileHash === fileHash);
 
-      let analysis: PolicyAnalysis;
+      // Default values since inputs are removed
+      const userDetails = { name: 'Verified User', email: 'verified@user.terminal' };
 
       if (existingMatch) {
-        analysis = existingMatch;
         startProgressSimulation(true); 
-      } else {
-        // CALL ANALYSIS - BLOCKING FOR RESULT
-        analysis = await analyzePolicy(file, abortControllerRef.current.signal);
-        
-        // CONCURRENT NON-BLOCKING BACKGROUND TASKS (Vault Commit)
-        // We use Promise.allSettled to ensure background failures don't stall the UI
-        Promise.allSettled([
-          storage.savePolicy(analysis)
-        ]).then(() => console.log("Boss Terminal: Vault data secured in background."));
+        await new Promise(r => setTimeout(r, 400)); 
+        if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+        setProgress(100);
+        setTimeout(() => {
+          onAnalysisComplete(existingMatch, userDetails);
+          setIsUploading(false);
+          setProgress(0);
+        }, 300);
+        return;
       }
 
-      // IMMEDIATE COMPLETION TRIGGER
+      const analysis = await analyzePolicy(file, abortControllerRef.current.signal);
+      
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       setProgress(100);
       
-      // Delay slightly for visual 100% then trigger view switch
       setTimeout(() => {
         onAnalysisComplete(analysis, userDetails);
         setIsUploading(false);
         setProgress(0);
-      }, 400);
+      }, 500);
       
     } catch (err: any) {
       if (err.name === 'AbortError') return;
-      
       console.error("Technical Audit Failure:", err);
-      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       setIsUploading(false);
       setProgress(0);
+      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       
-      alert(`AUDIT SYSTEM FAILURE: ${err.message || "Unknown error occurred on Boss Central Engine."}`);
+      const errorMessage = err.message || "Unknown error occurred on Boss Central Engine.";
+      alert(errorMessage);
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
@@ -157,7 +141,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
               <div className="absolute inset-0 border-[8px] border-yellow-400/10 rounded-full" />
               <div className="absolute inset-0 border-[8px] border-yellow-400 border-t-transparent rounded-full animate-spin" />
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-yellow-400 font-black text-2xl">{Math.floor(progress)}%</span>
+                <span className="text-yellow-400 font-black text-2xl">{Math.round(progress)}%</span>
               </div>
             </div>
             <div className="w-full space-y-10">
@@ -169,12 +153,9 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-[shimmer_2s_infinite]" />
                 </div>
               </div>
-              <p className="text-[10px] font-black text-gray-500 tracking-[0.3em] uppercase animate-pulse">
-                Boss Authority Processing...
-              </p>
               <button 
                 onClick={(e) => { e.stopPropagation(); handleStop(); }}
-                className="px-10 py-4 bg-red-500/10 text-red-400 border border-red-500/20 font-black text-[11px] tracking-widest uppercase rounded-2xl hover:bg-red-500 hover:text-white transition-all shadow-xl"
+                className="px-10 py-4 bg-yellow-400 text-black font-black text-[11px] tracking-widest uppercase rounded-2xl hover:bg-yellow-500 transition-all shadow-xl"
               >
                 Abort Audit
               </button>

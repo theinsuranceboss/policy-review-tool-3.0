@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 
 interface AdminLoginProps {
@@ -11,8 +12,8 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Updated credentials as requested: theinsuranceboss / admin
-    if (username === 'theinsuranceboss' && password === 'admin') {
+    // Updated credentials as requested: bossadmin / admin
+    if (username === 'bossadmin' && password === 'admin') {
       onLogin();
     } else {
       setError('Invalid admin credentials.');

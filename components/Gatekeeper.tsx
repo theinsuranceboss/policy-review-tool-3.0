@@ -70,7 +70,7 @@ const Gatekeeper: React.FC<GatekeeperProps> = ({ onUnlock }) => {
           </div>
           <button 
             onClick={() => navigate('/admin')}
-            className="px-4 py-2 bg-yellow-400 text-black text-[10px] font-black uppercase rounded-lg hover:bg-yellow-500 transition-all tracking-widest shadow-lg shadow-yellow-400/20"
+            className="text-[10px] font-black text-gray-600 hover:text-white uppercase tracking-widest transition-colors"
           >
             Staff Login
           </button>

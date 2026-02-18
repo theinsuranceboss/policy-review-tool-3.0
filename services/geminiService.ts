@@ -1,16 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { PolicyAnalysis, EZLynxPayload } from "../types";
 
-const ZAPIER_WEBHOOK_URL = "https://hooks.zapier.com/hooks/catch/25763261/ucmftd7/";
-const ANALYSIS_TIMEOUT = 60000; 
-
-/**
- * Strictly retrieves the API key from Vite/Netlify environment.
- */
-const getApiKey = (): string => {
-  // @ts-ignore
-  return import.meta.env?.VITE_GEMINI_API_KEY || "";
-};
+const ZAPIER_WEBHOOK_URL = "https://hooks.zapier.com/hooks/catch/25763261/uchujcq/";
 
 /**
  * Robustly extracts JSON from a string that might contain markdown, tags, or stray text.
@@ -25,11 +16,14 @@ function extractJSON(text: string, startTag?: string, endTag?: string): any {
     content = text.substring(startIndex + startTag.length, endIndex).trim();
   }
 
+  // 1. Initial cleanup: remove potential markdown code blocks
   let cleaned = content.replace(/```json\n?|```/g, '').trim();
   
+  // 2. Direct attempt
   try {
     return JSON.parse(cleaned);
   } catch (e) {
+    // 3. Resilient fallback: Find the first '{' and last '}' to isolate the JSON object
     const firstBrace = cleaned.indexOf('{');
     const lastBrace = cleaned.lastIndexOf('}');
     
@@ -41,13 +35,15 @@ function extractJSON(text: string, startTag?: string, endTag?: string): any {
         console.error("Resilient JSON extraction failed.");
       }
     }
+    
+    console.error("JSON extraction failed for snippet:", cleaned.substring(0, 50));
     return null;
   }
 }
 
 /**
- * DATA EXTRACTION PROTOCOL (BACKGROUND UPLINK)
- * Dispatched without awaiting to ensure zero latency on the main thread.
+ * DATA EXTRACTION PROTOCOL (MANDATORY)
+ * Sends extracted data to EZLynx via Zapier Hook.
  */
 const sendToZapier = async (text: string) => {
   const startTag = "--- UPLINK DATA START ---";
@@ -60,36 +56,28 @@ const sendToZapier = async (text: string) => {
     const jsonString = text.substring(startIndex + startTag.length, endIndex).trim();
     try {
       const payload: EZLynxPayload = JSON.parse(jsonString);
-      // Fire and forget fetch
-      fetch(ZAPIER_WEBHOOK_URL, {
+      await fetch(ZAPIER_WEBHOOK_URL, {
         method: 'POST',
         mode: 'no-cors', 
         body: JSON.stringify(payload)
-      }).catch(err => console.error("Zapier Background Error:", err));
-      
-      console.log("Boss Terminal: Uplink packet dispatched.");
+      });
+      console.log("Uplink exitoso a EZLynx");
     } catch (e) {
-      console.error("Error parsing Uplink JSON:", e);
+      console.error("Error al parsear el JSON de la IA", e);
     }
   }
 };
 
-async function generateWithRetry(ai: any, params: any, maxRetries = 2) {
-  let delay = 300; 
+/**
+ * Helper to call Gemini with exponential backoff on 429 errors.
+ * Optimized for Paid Tier: Faster retries and less aggressive cooling periods.
+ */
+async function generateWithRetry(ai: any, params: any, maxRetries = 3) {
+  let delay = 1500; // Optimized: Start with 1.5 seconds instead of 5
   for (let i = 0; i < maxRetries; i++) {
     try {
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error("ANALYSIS_TIMEOUT")), ANALYSIS_TIMEOUT)
-      );
-      
-      return await Promise.race([
-        ai.models.generateContent(params),
-        timeoutPromise
-      ]) as any;
-
+      return await ai.models.generateContent(params);
     } catch (error: any) {
-      if (error.message === "ANALYSIS_TIMEOUT") throw error;
-
       const errorMsg = error.message || "";
       const isQuotaError = 
         errorMsg.includes('429') || 
@@ -97,8 +85,14 @@ async function generateWithRetry(ai: any, params: any, maxRetries = 2) {
         error.status === 'RESOURCE_EXHAUSTED';
 
       if (isQuotaError && i < maxRetries - 1) {
-        await new Promise(resolve => setTimeout(resolve, delay + (Math.random() * 100)));
-        delay *= 2; 
+        // Reduced jitter for paid accounts to maintain throughput
+        const jitter = Math.random() * 500;
+        const finalDelay = delay + jitter;
+        
+        console.warn(`[Boss Engine] Temporary quota limit hit. Retrying in ${Math.round(finalDelay)}ms (Attempt ${i + 1}/${maxRetries})`);
+        
+        await new Promise(resolve => setTimeout(resolve, finalDelay));
+        delay *= 2; // Standard backoff
         continue;
       }
       throw error;
@@ -106,6 +100,9 @@ async function generateWithRetry(ai: any, params: any, maxRetries = 2) {
   }
 }
 
+/**
+ * Calculates a SHA-256 hash of the file content for duplicate detection.
+ */
 export const calculateFileHash = async (base64: string): Promise<string> => {
   const msgUint8 = new TextEncoder().encode(base64);
   const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
@@ -113,13 +110,11 @@ export const calculateFileHash = async (base64: string): Promise<string> => {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 };
 
+/**
+ * Deep scan of insurance policy using Gemini.
+ */
 export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<PolicyAnalysis> => {
-  const apiKey = getApiKey();
-  if (!apiKey) {
-    throw new Error("AUTHORITY DENIED: VITE_GEMINI_API_KEY is missing from environment variables.");
-  }
-
-  const ai = new GoogleGenAI({ apiKey });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
 
@@ -135,30 +130,28 @@ export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<P
   const prompt = `### PERSONA: Authority Audit Terminal for "The Insurance Boss" ###
 
 **MISSION:** 
-Analyze the provided insurance policy. Be aggressive, technical, and authoritative. Identify gaps.
+You are a high-precision cinematic underwriting engine. Your tone is technical, aggressive, and authoritative. Identify hidden gaps and coverage failures.
 
 **STRICT RESPONSE PROTOCOL:**
-1. Generate a deep technical audit report in Markdown.
-2. Embed a JSON object labeled [UI_METADATA] for dashboard display.
-   - Include: score (0-10), rating, insuredName, policyNumber, carrierName, premiumAmount, type, effectiveDate, expirationDate, summary, coverageAnalysis, strengths[], redFlags[], recommendations[], foundExclusions[], coverageLimits[{label, limit}].
-3. MANDATORY: Generate the structured JSON data block at the very end for EZLynx uplink.
+1. Generate a deep cinematic technical audit report in Markdown format.
+2. Embed a JSON object labeled [UI_METADATA] for the local dashboard. 
+   - MUST include: score (number 0-10), rating (string), insuredName (string), policyNumber (string), carrierName (string), premiumAmount (string), type (string), effectiveDate (string), expirationDate (string), summary (string), coverageAnalysis (string), strengths (string[]), redFlags (string[]), recommendations (string[]), foundExclusions (string[]), coverageLimits ({label: string, limit: string}[]).
+3. MANDATORY: After completing the cinematic audit, you MUST generate a structured JSON data block at the very end of your response for the technical uplink to EZLynx.
 
-Format the technical block EXACTLY like this:
+Format the technical block EXACTLY like this (DATA EXTRACTION PROTOCOL):
 --- UPLINK DATA START ---
 {
   "client_name": "[Full Name of Insured]",
-  "client_email": "[Email if found]",
-  "client_phone": "[Phone if found]",
-  "client_street": "[Extract Street Address only]",
-  "client_city": "[Extract City only]",
-  "client_state": "[Extract State code only]",
-  "client_zip": "[Extract Zip code only]",
-  "carrier_name": "[Current Carrier Name]",
-  "policy_number": "[Full Policy Number]",
-  "current_premium": "[Annual Premium]",
-  "policy_type": "[LOB]",
-  "expiration_date": "[YYYY-MM-DD]",
-  "summary": "[The full technical summary of the policy analysis]"
+  "client_email": "[Extract Email if present]",
+  "client_phone": "[Extract Phone if present]",
+  "client_street": "[Extract Street Address]",
+  "client_city": "[Extract City]",
+  "client_state": "[Extract State]",
+  "client_zip": "[Extract Zip Code]",
+  "carrier_name": "[Extract Current Carrier Name]",
+  "current_premium": "[Extract Total Annual Premium]",
+  "policy_type": "[LOB: e.g., GL, WC, Auto, Home, etc.]",
+  "expiration_date": "[YYYY-MM-DD]"
 }
 --- UPLINK DATA END ---`;
 
@@ -177,9 +170,10 @@ Format the technical block EXACTLY like this:
 
     const fullText = response.text || '';
     
-    // DISPATCH BACKGROUND UPLINK IMMEDIATELY (NON-BLOCKING)
-    sendToZapier(fullText).catch(e => console.error("Background Webhook Error:", e));
+    // 1. Process technical uplink to Zapier
+    await sendToZapier(fullText);
 
+    // 2. Extract UI Metadata
     let uiData = null;
     const uiDataMatch = fullText.match(/\[UI_METADATA\]\s*([\s\S]+?)(?=\n\n|---|$)/);
     
@@ -201,9 +195,10 @@ Format the technical block EXACTLY like this:
     }
 
     if (!uiData) {
-      throw new Error("Audit processing successful, but metadata extraction failed. Verify document contents.");
+      throw new Error("UI metadata extraction failed. The Boss Terminal was unable to process the audit results.");
     }
 
+    // 3. Extract local copy of uplink data
     const uplinkData: EZLynxPayload = extractJSON(fullText, "--- UPLINK DATA START ---", "--- UPLINK DATA END ---");
 
     const analysis: PolicyAnalysis = {
@@ -240,6 +235,11 @@ Format the technical block EXACTLY like this:
     return analysis;
   } catch (error: any) {
     if (error.name === 'AbortError') throw error;
-    throw new Error(error.message || "Boss Central Engine connection failure.");
+    
+    if (error.message?.includes('429') || error.message?.includes('RESOURCE_EXHAUSTED')) {
+      throw new Error("SYSTEM OVERLOAD: The Boss Authority Engine is seeing high traffic. Since you are on a paid tier, this should be transient. Please try again in a few moments.");
+    }
+
+    throw new Error(error.message || "Unknown error occurred on Boss Central Engine.");
   }
 };
