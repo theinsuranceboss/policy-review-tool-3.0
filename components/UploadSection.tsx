@@ -21,7 +21,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
   const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    // Check if API key is available
+    // Check if API key is available on mount
     if (!process.env.API_KEY || process.env.API_KEY === '') {
       setHasApiKey(false);
     }
@@ -43,17 +43,27 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
     setProgress(0);
     if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
 
-    const intervalSpeed = isFastTrack ? 10 : 50; 
+    const intervalSpeed = isFastTrack ? 10 : 40; 
 
     progressIntervalRef.current = window.setInterval(() => {
       setProgress(prev => {
-        // Stop at 99% and wait for actual result to trigger 100%
-        if (prev >= 99) {
-          if (!isFastTrack) return 99;
-          return 100;
+        // Stop at 98.5% and wait for the real resolution to force 100%
+        if (prev >= 98.5) {
+          return 98.5;
         }
-        const increment = isFastTrack ? 15 : (prev < 40 ? 4 : prev < 75 ? 1.5 : 0.2);
-        return Math.min(prev + increment, 99);
+        
+        let increment = 0;
+        if (isFastTrack) {
+          increment = 20;
+        } else {
+          // Dynamic deceleration for realistic feedback
+          if (prev < 30) increment = 4;
+          else if (prev < 65) increment = 1.2;
+          else if (prev < 90) increment = 0.4;
+          else increment = 0.05;
+        }
+        
+        return Math.min(prev + increment, 98.5);
       });
     }, intervalSpeed);
   };
@@ -63,7 +73,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
     if (!file) return;
 
     if (!hasApiKey) {
-      console.error("Configuration Error: API Key missing.");
+      console.error("Boss Authority Terminal Error: API Key is missing.");
       return;
     }
 
@@ -72,52 +82,49 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
     abortControllerRef.current = new AbortController();
 
     try {
+      const userDetails = { name: 'Verified Authority', email: 'verified@boss.terminal' };
+
       const base64Data = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
-        reader.onerror = () => reject(new Error("Failed to read file"));
+        reader.onerror = () => reject(new Error("Failed to read document stream."));
         reader.readAsDataURL(file);
       });
 
       const fileHash = await calculateFileHash(base64Data);
       const existingMatch = existingPolicies.find(p => p.fileHash === fileHash);
 
-      const userDetails = { name: 'Verified User', email: 'verified@user.terminal' };
+      let analysis: PolicyAnalysis;
 
       if (existingMatch) {
+        analysis = existingMatch;
         startProgressSimulation(true); 
-        await new Promise(r => setTimeout(r, 400)); 
-        if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-        setProgress(100);
-        setTimeout(() => {
-          onAnalysisComplete(existingMatch, userDetails);
-          setIsUploading(false);
-          setProgress(0);
-        }, 200);
-        return;
+        await new Promise(r => setTimeout(r, 600)); 
+      } else {
+        // Execute AI Analysis (Blocking result only, webhooks backgrounded in service)
+        analysis = await analyzePolicy(file, abortControllerRef.current.signal);
       }
 
-      // Block until analysis is returned, but webhook is backgrounded inside analyzePolicy
-      const analysis = await analyzePolicy(file, abortControllerRef.current.signal);
-      
       // BREAK THE 99% LOOP: Force finish immediately
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       setProgress(100);
       
+      // Delay slightly for visual feedback before view swap
       setTimeout(() => {
         onAnalysisComplete(analysis, userDetails);
         setIsUploading(false);
         setProgress(0);
-      }, 300);
+      }, 400);
       
     } catch (err: any) {
       if (err.name === 'AbortError') return;
+      
       console.error("Technical Audit Failure:", err);
+      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       setIsUploading(false);
       setProgress(0);
-      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       
-      alert(err.message || "Unknown error occurred on Boss Central Engine.");
+      alert(`AUDIT SYSTEM FAILURE: ${err.message || "Unknown error occurred on Boss Central Engine."}`);
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
@@ -165,7 +172,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
               <div className="absolute inset-0 border-[8px] border-yellow-400/10 rounded-full" />
               <div className="absolute inset-0 border-[8px] border-yellow-400 border-t-transparent rounded-full animate-spin" />
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-yellow-400 font-black text-2xl">{Math.round(progress)}%</span>
+                <span className="text-yellow-400 font-black text-2xl">{Math.floor(progress)}%</span>
               </div>
             </div>
             <div className="w-full space-y-10">
@@ -177,6 +184,9 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-[shimmer_2s_infinite]" />
                 </div>
               </div>
+              <p className="text-[10px] font-black text-gray-500 tracking-[0.3em] uppercase animate-pulse">
+                Initializing Boss Protocol...
+              </p>
               <button 
                 onClick={(e) => { e.stopPropagation(); handleStop(); }}
                 className="px-10 py-4 bg-yellow-400 text-black font-black text-[11px] tracking-widest uppercase rounded-2xl hover:bg-yellow-500 transition-all shadow-xl"
