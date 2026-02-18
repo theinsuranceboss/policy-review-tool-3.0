@@ -1,8 +1,17 @@
-
 import { GoogleGenAI } from "@google/genai";
 import { PolicyAnalysis, EZLynxPayload } from "../types";
 
 const ZAPIER_WEBHOOK_URL = "https://hooks.zapier.com/hooks/catch/25763261/ucmftd7/";
+const ANALYSIS_TIMEOUT = 60000; // 60 seconds strict timeout
+
+/**
+ * Retrieves the API key with priority for Netlify/Vite environment variables.
+ */
+const getApiKey = (): string => {
+  // @ts-ignore - Support both Vite and standard process env for maximum compatibility
+  const key = (import.meta.env?.VITE_GEMINI_API_KEY) || (process.env.API_KEY);
+  return key || "";
+};
 
 /**
  * Robustly extracts JSON from a string that might contain markdown, tags, or stray text.
@@ -73,11 +82,23 @@ const sendToZapier = async (text: string) => {
  * Helper to call Gemini with minimal delay for Pay-as-you-go (Level 1).
  */
 async function generateWithRetry(ai: any, params: any, maxRetries = 3) {
-  let delay = 300; // Aggressive minimal delay for Level 1 Paid Tier
+  let delay = 300; 
   for (let i = 0; i < maxRetries; i++) {
     try {
-      return await ai.models.generateContent(params);
+      // Create a timeout promise
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("ANALYSIS_TIMEOUT")), ANALYSIS_TIMEOUT)
+      );
+      
+      // Race the API call against the timeout
+      return await Promise.race([
+        ai.models.generateContent(params),
+        timeoutPromise
+      ]) as any;
+
     } catch (error: any) {
+      if (error.message === "ANALYSIS_TIMEOUT") throw error;
+
       const errorMsg = error.message || "";
       const isQuotaError = 
         errorMsg.includes('429') || 
@@ -104,20 +125,19 @@ export const calculateFileHash = async (base64: string): Promise<string> => {
 };
 
 export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<PolicyAnalysis> => {
-  // Pre-flight Authority Check
-  if (!process.env.API_KEY || process.env.API_KEY === 'undefined' || process.env.API_KEY === '') {
-    throw new Error("AUTHORITY DENIED: Boss Central Engine API Key is missing. Please check Netlify environment variables.");
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error("AUTHORITY DENIED: Boss Central Engine API Key (VITE_GEMINI_API_KEY) is missing from the environment.");
   }
 
-  // Fix: Always use the direct process.env.API_KEY for initialization as per guidelines
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey });
   
   if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
 
   const base64Data = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
-    reader.onerror = () => reject(new Error("Failed to read file"));
+    reader.onerror = () => reject(new Error("Failed to read policy document. File may be corrupted."));
     reader.readAsDataURL(file);
   });
 
@@ -193,7 +213,7 @@ Format the technical block EXACTLY like this:
     }
 
     if (!uiData) {
-      throw new Error("Boss Terminal was unable to process the audit results.");
+      throw new Error("Boss Terminal response received but analysis extraction failed. Verify policy format.");
     }
 
     const uplinkData: EZLynxPayload = extractJSON(fullText, "--- UPLINK DATA START ---", "--- UPLINK DATA END ---");
@@ -232,6 +252,9 @@ Format the technical block EXACTLY like this:
     return analysis;
   } catch (error: any) {
     if (error.name === 'AbortError') throw error;
-    throw new Error(error.message || "Boss Central Engine Failure.");
+    if (error.message === 'ANALYSIS_TIMEOUT') {
+      throw new Error("ANALYSIS_TIMEOUT: The Boss Central Engine took too long to respond. The document may be too large or the API is under heavy load. Please try again.");
+    }
+    throw new Error(error.message || "Boss Central Engine Failure. Connection lost or protocol rejected.");
   }
 };

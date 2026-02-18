@@ -38,17 +38,28 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
     if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
 
     // Optimized speed for Paid Tier experience
-    const intervalSpeed = isFastTrack ? 10 : 40; 
+    const intervalSpeed = isFastTrack ? 10 : 60; 
 
     progressIntervalRef.current = window.setInterval(() => {
       setProgress(prev => {
-        if (prev >= 99) {
-          if (!isFastTrack) return 99;
+        // Slow down significantly as we approach the final stretch to avoid "stalling" at 99
+        if (prev >= 98) {
+          if (!isFastTrack) return 98.5; // Stay near 99 but leave room for the jump
           return 100;
         }
-        // More aggressive increments to match the paid API performance
-        const increment = isFastTrack ? 15 : (prev < 40 ? 5 : prev < 75 ? 2 : 0.5);
-        return Math.min(prev + increment, 100);
+        
+        // Dynamic increments: fast start, slow end
+        let increment = 0;
+        if (isFastTrack) {
+          increment = 20;
+        } else {
+          if (prev < 30) increment = 4;
+          else if (prev < 60) increment = 1.5;
+          else if (prev < 85) increment = 0.5;
+          else increment = 0.1;
+        }
+        
+        return Math.min(prev + increment, 98.9);
       });
     }, intervalSpeed);
   };
@@ -56,6 +67,11 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (file.size > 15 * 1024 * 1024) {
+      alert("Policy Authority Alert: File exceeds 15MB limit. Please provide a smaller document.");
+      return;
+    }
 
     setIsUploading(true);
     startProgressSimulation();
@@ -73,41 +89,45 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
       const existingMatch = existingPolicies.find(p => p.fileHash === fileHash);
 
       // Default values since inputs are removed
-      const userDetails = { name: 'Verified User', email: 'verified@user.terminal' };
+      const userDetails = { name: 'Verified Authority', email: 'verified@boss.terminal' };
 
       if (existingMatch) {
         startProgressSimulation(true); 
-        await new Promise(r => setTimeout(r, 400)); 
+        await new Promise(r => setTimeout(r, 600)); 
         if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
         setProgress(100);
         setTimeout(() => {
           onAnalysisComplete(existingMatch, userDetails);
           setIsUploading(false);
           setProgress(0);
-        }, 300);
+        }, 400);
         return;
       }
 
+      // Execute main analysis
       const analysis = await analyzePolicy(file, abortControllerRef.current.signal);
       
+      // Analysis successful: Finalize progress immediately
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       setProgress(100);
       
+      // Delay slightly for visual feedback before switching views
       setTimeout(() => {
         onAnalysisComplete(analysis, userDetails);
         setIsUploading(false);
         setProgress(0);
-      }, 500);
+      }, 600);
       
     } catch (err: any) {
       if (err.name === 'AbortError') return;
+      
       console.error("Technical Audit Failure:", err);
+      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       setIsUploading(false);
       setProgress(0);
-      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       
       const errorMessage = err.message || "Unknown error occurred on Boss Central Engine.";
-      alert(errorMessage);
+      alert(`AUDIT SYSTEM FAILURE: ${errorMessage}`);
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
@@ -141,7 +161,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
               <div className="absolute inset-0 border-[8px] border-yellow-400/10 rounded-full" />
               <div className="absolute inset-0 border-[8px] border-yellow-400 border-t-transparent rounded-full animate-spin" />
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-yellow-400 font-black text-2xl">{Math.round(progress)}%</span>
+                <span className="text-yellow-400 font-black text-2xl">{Math.floor(progress)}%</span>
               </div>
             </div>
             <div className="w-full space-y-10">
@@ -153,9 +173,12 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-[shimmer_2s_infinite]" />
                 </div>
               </div>
+              <p className="text-[10px] font-black text-gray-500 tracking-[0.3em] uppercase animate-pulse">
+                Engaging Boss Authority Engine...
+              </p>
               <button 
                 onClick={(e) => { e.stopPropagation(); handleStop(); }}
-                className="px-10 py-4 bg-yellow-400 text-black font-black text-[11px] tracking-widest uppercase rounded-2xl hover:bg-yellow-500 transition-all shadow-xl"
+                className="px-10 py-4 bg-red-500/10 text-red-400 border border-red-500/20 font-black text-[11px] tracking-widest uppercase rounded-2xl hover:bg-red-500 hover:text-white transition-all shadow-xl"
               >
                 Abort Audit
               </button>
