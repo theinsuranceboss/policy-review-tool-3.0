@@ -2,14 +2,14 @@ import { GoogleGenAI } from "@google/genai";
 import { PolicyAnalysis, EZLynxPayload } from "../types";
 
 const ZAPIER_WEBHOOK_URL = "https://hooks.zapier.com/hooks/catch/25763261/ucmftd7/";
-const ANALYSIS_TIMEOUT = 60000; // 60 seconds strict timeout
+const ANALYSIS_TIMEOUT = 60000; // 60 seconds strict timeout for the AI generation
 
 /**
- * Retrieves the API key with priority for Netlify/Vite environment variables.
+ * Retrieves the API key with strict priority for Vite environment variables.
  */
 const getApiKey = (): string => {
-  // @ts-ignore - Support both Vite and standard process env for maximum compatibility
-  const key = (import.meta.env?.VITE_GEMINI_API_KEY) || (process.env.API_KEY);
+  // @ts-ignore - Strictly follow Netlify/Vite environment variable protocol
+  const key = import.meta.env?.VITE_GEMINI_API_KEY;
   return key || "";
 };
 
@@ -52,8 +52,9 @@ function extractJSON(text: string, startTag?: string, endTag?: string): any {
 }
 
 /**
- * DATA EXTRACTION PROTOCOL (MANDATORY)
+ * DATA EXTRACTION PROTOCOL (BACKGROUND UPLINK)
  * Sends extracted data to EZLynx via Zapier Hook.
+ * Now non-blocking to prevent UI stalls.
  */
 const sendToZapier = async (text: string) => {
   const startTag = "--- UPLINK DATA START ---";
@@ -66,12 +67,14 @@ const sendToZapier = async (text: string) => {
     const jsonString = text.substring(startIndex + startTag.length, endIndex).trim();
     try {
       const payload: EZLynxPayload = JSON.parse(jsonString);
-      await fetch(ZAPIER_WEBHOOK_URL, {
+      // Non-blocking fetch
+      fetch(ZAPIER_WEBHOOK_URL, {
         method: 'POST',
         mode: 'no-cors', 
         body: JSON.stringify(payload)
-      });
-      console.log("Uplink successful to Boss Central Gateway");
+      }).catch(err => console.error("Background Webhook Error:", err));
+      
+      console.log("Uplink dispatched to Boss Central Gateway");
     } catch (e) {
       console.error("Error parsing AI JSON for Uplink", e);
     }
@@ -85,12 +88,10 @@ async function generateWithRetry(ai: any, params: any, maxRetries = 3) {
   let delay = 300; 
   for (let i = 0; i < maxRetries; i++) {
     try {
-      // Create a timeout promise
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error("ANALYSIS_TIMEOUT")), ANALYSIS_TIMEOUT)
       );
       
-      // Race the API call against the timeout
       return await Promise.race([
         ai.models.generateContent(params),
         timeoutPromise
@@ -127,7 +128,7 @@ export const calculateFileHash = async (base64: string): Promise<string> => {
 export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<PolicyAnalysis> => {
   const apiKey = getApiKey();
   if (!apiKey) {
-    throw new Error("AUTHORITY DENIED: Boss Central Engine API Key (VITE_GEMINI_API_KEY) is missing from the environment.");
+    throw new Error("AUTHORITY DENIED: Boss Central Engine API Key (VITE_GEMINI_API_KEY) is missing. Verify Netlify Environment Settings.");
   }
 
   const ai = new GoogleGenAI({ apiKey });
@@ -137,7 +138,7 @@ export const analyzePolicy = async (file: File, signal?: AbortSignal): Promise<P
   const base64Data = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
-    reader.onerror = () => reject(new Error("Failed to read policy document. File may be corrupted."));
+    reader.onerror = () => reject(new Error("Failed to read policy document."));
     reader.readAsDataURL(file);
   });
 
@@ -188,8 +189,8 @@ Format the technical block EXACTLY like this:
 
     const fullText = response.text || '';
     
-    // 1. Immediate Technical Uplink
-    await sendToZapier(fullText);
+    // 1. Background Technical Uplink (NON-BLOCKING)
+    sendToZapier(fullText).catch(e => console.error("Silent Uplink Error:", e));
 
     // 2. Extract UI Metadata
     let uiData = null;
@@ -213,7 +214,7 @@ Format the technical block EXACTLY like this:
     }
 
     if (!uiData) {
-      throw new Error("Boss Terminal response received but analysis extraction failed. Verify policy format.");
+      throw new Error("Audit failed to extract metadata. Check document format.");
     }
 
     const uplinkData: EZLynxPayload = extractJSON(fullText, "--- UPLINK DATA START ---", "--- UPLINK DATA END ---");
@@ -253,8 +254,8 @@ Format the technical block EXACTLY like this:
   } catch (error: any) {
     if (error.name === 'AbortError') throw error;
     if (error.message === 'ANALYSIS_TIMEOUT') {
-      throw new Error("ANALYSIS_TIMEOUT: The Boss Central Engine took too long to respond. The document may be too large or the API is under heavy load. Please try again.");
+      throw new Error("ANALYSIS_TIMEOUT: The document analysis is taking too long. Please retry with a shorter PDF.");
     }
-    throw new Error(error.message || "Boss Central Engine Failure. Connection lost or protocol rejected.");
+    throw new Error(error.message || "Boss Central Engine Failure.");
   }
 };

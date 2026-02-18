@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { analyzePolicy, calculateFileHash } from '../services/geminiService';
 import { PolicyAnalysis, PremiumRequest } from '../types';
+import { storage } from '../services/storage';
 
 interface UploadSectionProps {
   onAnalysisComplete: (analysis: PolicyAnalysis, details: { name: string; email: string }) => void;
@@ -37,18 +38,16 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
     setProgress(0);
     if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
 
-    // Optimized speed for Paid Tier experience
     const intervalSpeed = isFastTrack ? 10 : 60; 
 
     progressIntervalRef.current = window.setInterval(() => {
       setProgress(prev => {
-        // Slow down significantly as we approach the final stretch to avoid "stalling" at 99
+        // Stop the simulation just before 100 to wait for the real result
         if (prev >= 98) {
-          if (!isFastTrack) return 98.5; // Stay near 99 but leave room for the jump
+          if (!isFastTrack) return 98.5; 
           return 100;
         }
         
-        // Dynamic increments: fast start, slow end
         let increment = 0;
         if (isFastTrack) {
           increment = 20;
@@ -69,7 +68,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
     if (!file) return;
 
     if (file.size > 15 * 1024 * 1024) {
-      alert("Policy Authority Alert: File exceeds 15MB limit. Please provide a smaller document.");
+      alert("Policy Authority Alert: File exceeds 15MB limit.");
       return;
     }
 
@@ -78,6 +77,10 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
     abortControllerRef.current = new AbortController();
 
     try {
+      // Default identity for audit
+      const userDetails = { name: 'Verified Authority', email: 'verified@boss.terminal' };
+
+      // 1. Initial Processing
       const base64Data = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
@@ -88,35 +91,33 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
       const fileHash = await calculateFileHash(base64Data);
       const existingMatch = existingPolicies.find(p => p.fileHash === fileHash);
 
-      // Default values since inputs are removed
-      const userDetails = { name: 'Verified Authority', email: 'verified@boss.terminal' };
+      let analysis: PolicyAnalysis;
 
       if (existingMatch) {
+        analysis = existingMatch;
         startProgressSimulation(true); 
-        await new Promise(r => setTimeout(r, 600)); 
-        if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-        setProgress(100);
-        setTimeout(() => {
-          onAnalysisComplete(existingMatch, userDetails);
-          setIsUploading(false);
-          setProgress(0);
-        }, 400);
-        return;
+      } else {
+        // 2. AI Analysis Phase
+        analysis = await analyzePolicy(file, abortControllerRef.current.signal);
+        
+        // 3. Vault Commit Phase (MANDATORY BEFORE 100%)
+        try {
+          await storage.savePolicy(analysis);
+        } catch (dbErr) {
+          console.error("Vault Data Persistence Error (Logged but continuing):", dbErr);
+        }
       }
 
-      // Execute main analysis
-      const analysis = await analyzePolicy(file, abortControllerRef.current.signal);
-      
-      // Analysis successful: Finalize progress immediately
+      // 4. Force Completion Phase
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       setProgress(100);
       
-      // Delay slightly for visual feedback before switching views
+      // Delay slightly for visual "finish" before switching
       setTimeout(() => {
         onAnalysisComplete(analysis, userDetails);
         setIsUploading(false);
         setProgress(0);
-      }, 600);
+      }, 500);
       
     } catch (err: any) {
       if (err.name === 'AbortError') return;
@@ -126,8 +127,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
       setIsUploading(false);
       setProgress(0);
       
-      const errorMessage = err.message || "Unknown error occurred on Boss Central Engine.";
-      alert(`AUDIT SYSTEM FAILURE: ${errorMessage}`);
+      alert(`AUDIT SYSTEM FAILURE: ${err.message || "Unknown error occurred on Boss Central Engine."}`);
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
@@ -174,7 +174,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onAnalysisComplete, exist
                 </div>
               </div>
               <p className="text-[10px] font-black text-gray-500 tracking-[0.3em] uppercase animate-pulse">
-                Engaging Boss Authority Engine...
+                Boss Authority Processing...
               </p>
               <button 
                 onClick={(e) => { e.stopPropagation(); handleStop(); }}
