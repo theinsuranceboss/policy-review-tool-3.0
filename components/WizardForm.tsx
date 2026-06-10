@@ -101,6 +101,18 @@ const WizardForm: React.FC<WizardFormProps> = ({ onSubmit, onCancel }) => {
 
   return (
     <div className="max-w-3xl mx-auto space-y-8 pb-20 text-left">
+      {/* Brand Logo */}
+      <div className="flex justify-center">
+        <div className="w-16 h-16 rounded-2xl overflow-hidden border border-white/10 bg-black/40 flex items-center justify-center p-2">
+          <img 
+            src="https://theinsuranceboss.com/wp-content/uploads/2026/05/IB-Logo-1.png" 
+            alt="The Insurance Boss Logo" 
+            className="w-full h-full object-contain"
+            referrerPolicy="no-referrer"
+          />
+        </div>
+      </div>
+
       {/* Progress Bar */}
       <div className="sticky top-24 z-40 space-y-2">
         <div className="flex justify-between items-end px-2">

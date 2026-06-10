@@ -26,10 +26,13 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysis, onReset, onOp
         {/* LOGO & BRANDING FOR PDF EXPORT */}
         <div className="flex items-center justify-between mb-8 border-b border-white/10 pb-8">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl border border-yellow-400/30 flex items-center justify-center p-2.5 bg-black">
-              <svg className="w-full h-full text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 2L3 7v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5zm0 2.18l7 3.89v5.93c0 4.62-3 8.94-7 10-4-1.06-7-5.38-7-10V8.07l7-3.89z"/>
-              </svg>
+            <div className="w-14 h-14 rounded-2xl border border-white/10 flex items-center justify-center p-2 bg-black overflow-hidden">
+              <img 
+                src="https://theinsuranceboss.com/wp-content/uploads/2026/05/IB-Logo-1.png" 
+                alt="The Insurance Boss Logo" 
+                className="w-full h-full object-contain"
+                referrerPolicy="no-referrer"
+              />
             </div>
             <div>
               <h1 className="text-3xl font-black tracking-tighter uppercase leading-none text-white">

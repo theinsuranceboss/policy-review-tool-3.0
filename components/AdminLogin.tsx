@@ -22,6 +22,16 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
 
   return (
     <div className="max-w-md mx-auto py-24 space-y-8 animate-in fade-in zoom-in-95 duration-500 text-center">
+      <div className="flex items-center justify-center mb-4">
+        <div className="w-16 h-16 rounded-2xl overflow-hidden border border-white/10 bg-black/40 flex items-center justify-center p-2">
+          <img 
+            src="https://theinsuranceboss.com/wp-content/uploads/2026/05/IB-Logo-1.png" 
+            alt="The Insurance Boss Logo" 
+            className="w-full h-full object-contain"
+            referrerPolicy="no-referrer"
+          />
+        </div>
+      </div>
       <div className="space-y-2">
         <h2 className="text-4xl font-black tracking-tighter text-white">Admin login</h2>
         <p className="text-gray-500 font-bold uppercase tracking-widest text-[10px]">Vault access required</p>

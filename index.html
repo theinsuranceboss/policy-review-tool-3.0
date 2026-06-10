@@ -6,7 +6,6 @@
     <title>The Insurance Boss - Policy Review</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script type='module' src='https://interfaces.zapier.com/assets/web-components/zapier-interfaces/zapier-interfaces.esm.js'></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -66,7 +65,26 @@
         font-style: normal !important;
       }
     </style>
-    <script>
+     <script>
+      // Robust shim for sandboxed environments where window.fetch is a getter-only property
+      (function() {
+        try {
+          let originalFetch = window.fetch;
+          Object.defineProperty(window, 'fetch', {
+            get() {
+              return originalFetch;
+            },
+            set(newFetch) {
+              originalFetch = newFetch;
+            },
+            configurable: true,
+            enumerable: true
+          });
+        } catch (e) {
+          console.warn("Could not redefine window.fetch:", e);
+        }
+      })();
+
       // Global shim for process.env to satisfy library requirements
       window.process = window.process || { env: {} };
       window.process.env = window.process.env || {};
